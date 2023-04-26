@@ -337,9 +337,11 @@ def parse(conf, args, usage=None, prog=None,
     conf.register_cli_opts(_CLI_OPTS)
     conf.register_opts(_BASE_OPTS)
     conf.register_opts(_PROFILE_OPTS, group='profiles')
-    for name, opts in gen_all_source_opts():
+    all_source_opts = gen_all_source_opts()
+    all_users = gen_all_user_opts()
+    for name, opts in all_source_opts:
         conf.register_opts(opts, name)
-    for name, opts in gen_all_user_opts():
+    for name, opts in all_users:
         conf.register_opts(opts, name)
 
     conf(args=args,
