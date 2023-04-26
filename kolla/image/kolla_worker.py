@@ -20,11 +20,15 @@ import shutil
 import sys
 import tempfile
 import time
+import logging
 
 import jinja2
+from oslo_config.cfg import ConfigOpts
+
 from kolla.common import config as common_config
 from kolla.common import utils
 from kolla import exception
+from kolla.common.utils import make_a_logger, make_basic_logger
 from kolla.image.tasks import BuildTask
 from kolla.image.unbuildable import UNBUILDABLE_IMAGES
 from kolla.image.utils import LOG
@@ -37,6 +41,9 @@ from oslo_config import cfg
 
 PROJECT_ROOT = os.path.abspath(os.path.join(
     os.path.dirname(os.path.realpath(__file__)), '../..'))
+
+# LOG = make_a_logger()
+LOG = make_basic_logger(__name__)
 
 
 class Image(object):
@@ -84,7 +91,7 @@ class Image(object):
 
 class KollaWorker(object):
 
-    def __init__(self, conf):
+    def __init__(self, conf: ConfigOpts):
         self.conf = conf
         self.images_dir = self._get_images_dir()
         self.registry = conf.registry
@@ -182,8 +189,7 @@ class KollaWorker(object):
                 LOG.info('Found the docker image folder at %s', image_path)
                 return image_path
         else:
-            raise exception.KollaDirNotFoundException('Image dir can not '
-                                                      'be found')
+            raise exception.KollaDirNotFoundException('Image dir can not be found')
 
     def build_rpm_setup(self, rpm_setup_config):
         """Generates a list of docker commands based on provided configuration.
@@ -236,13 +242,16 @@ class KollaWorker(object):
         shutil.copytree(src, dest, dirs_exist_ok=True)
 
     def setup_working_dir(self):
-        """Creates a working directory for use while building."""
+        """
+        Creates a working directory for use while building.
+        """
+
+        # if working dir is specified, use it
         if self.conf.work_dir:
             self.working_dir = os.path.join(self.conf.work_dir, 'docker')
         else:
             ts = time.time()
-            ts = datetime.datetime.fromtimestamp(ts).strftime(
-                '%Y-%m-%d_%H-%M-%S_')
+            ts = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d_%H-%M-%S_')
             self.temp_dir = tempfile.mkdtemp(prefix='kolla-' + ts)
             self.working_dir = os.path.join(self.temp_dir, 'docker')
         self.copy_dir(self.images_dir, self.working_dir)
@@ -294,16 +303,13 @@ class KollaWorker(object):
         return ret
 
     def create_dockerfiles(self):
-        kolla_version = version.git_info if len(version.git_info) != 0 else \
-            version.version_info.cached_version_string()
-        supported_distro_name = common_config.DISTRO_PRETTY_NAME.get(
-            self.base)
+        kolla_version = version.git_info if len(version.git_info) != 0 else version.version_info.cached_version_string()
+        supported_distro_name = common_config.DISTRO_PRETTY_NAME.get(self.base)
         for path in self.docker_build_paths:
             template_name = "Dockerfile.j2"
             image_name = path.split("/")[-1]
             ts = time.time()
-            build_date = datetime.datetime.fromtimestamp(ts).strftime(
-                '%Y%m%d')
+            build_date = datetime.datetime.fromtimestamp(ts).strftime('%Y%m%d')
             values = {'base_distro': self.base,
                       'base_image': self.conf.base_image,
                       'base_distro_tag': self.base_tag,
@@ -318,8 +324,7 @@ class KollaWorker(object):
                       'namespace': self.namespace,
                       'openstack_release': self.openstack_release,
                       'openstack_branch': self.openstack_branch,
-                      'openstack_branch_slashed':
-                          self.openstack_branch_slashed,
+                      'openstack_branch_slashed':self.openstack_branch_slashed,
                       'tag': self.tag,
                       'maintainer': self.maintainer,
                       'kolla_version': kolla_version,
@@ -330,8 +335,7 @@ class KollaWorker(object):
                       'rpm_setup': self.rpm_setup,
                       'build_date': build_date,
                       'clean_package_cache': self.clean_package_cache}
-            env = jinja2.Environment(  # nosec: not used to render HTML
-                loader=jinja2.FileSystemLoader(self.working_dir))
+            env = jinja2.Environment(loader=jinja2.FileSystemLoader(self.working_dir))
             env.filters.update(self._get_filters())
             env.globals.update(self._get_methods())
             tpl_path = os.path.join(
@@ -343,8 +347,7 @@ class KollaWorker(object):
                 tpl_dict = self._merge_overrides(self.conf.template_override)
                 template_name = os.path.basename(list(tpl_dict.keys())[0])
                 values['parent_template'] = template
-                env = jinja2.Environment(  # nosec: not used to render HTML
-                    loader=jinja2.DictLoader(tpl_dict))
+                env = jinja2.Environment(loader=jinja2.DictLoader(tpl_dict))
                 env.filters.update(self._get_filters())
                 env.globals.update(self._get_methods())
                 template = env.get_template(template_name)
@@ -352,7 +355,7 @@ class KollaWorker(object):
             content_path = os.path.join(path, 'Dockerfile')
             with open(content_path, 'w') as f:
                 LOG.debug("Rendered %s into:", tpl_path)
-                LOG.debug(content)
+                LOG.debug(f"The Dockerfile content:\n{content}")
                 f.write(content)
                 LOG.debug("Wrote it to %s", content_path)
 
@@ -429,7 +432,7 @@ class KollaWorker(object):
                     while (ancestor_image.parent is not None):
                         ancestor_image = ancestor_image.parent
                         if ancestor_image.name in unbuildable_images or \
-                           ancestor_image.status == Status.UNBUILDABLE:
+                                ancestor_image.status == Status.UNBUILDABLE:
                             build_image = False
                             ancestor_image.status = Status.UNBUILDABLE
                             break
@@ -601,20 +604,23 @@ class KollaWorker(object):
                 self.image_statuses_allowed_to_fail)
 
     def build_image_list(self):
-        def process_source_installation(image, section):
+        def process_source_installation(image, section) -> dict:
             installation = dict()
-            # NOTE(jeffrey4l): source is not needed when the type is None
             if self.conf._get('type', self.conf._get_group(section)) is None:
                 if image.parent_name is None:
-                    LOG.debug('No source location found in section %s',
-                              section)
+                    LOG.debug('No source location found in section %s', section)
             else:
                 installation['type'] = self.conf[section]['type']
                 installation['source'] = self.conf[section]['location']
                 installation['name'] = section
+                installation['enabled'] = self.conf[section]['enabled']
                 if installation['type'] == 'git':
                     installation['reference'] = self.conf[section]['reference']
-                installation['enabled'] = self.conf[section]['enabled']
+                    LOG.info('Using Git %s at branch %s for image %s with enable=%s', installation['source'],
+                             installation['reference'], installation['name'], installation['enabled'])
+                else:
+                    LOG.info('Using type %s at %s for image %s with enable=%s', installation['type'],
+                             installation['source'], installation['name'], installation['enabled'])
             return installation
 
         all_sections = (set(self.conf._groups.keys()) |

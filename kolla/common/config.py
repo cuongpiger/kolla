@@ -15,11 +15,12 @@ import os
 
 from oslo_config import cfg
 from oslo_config import types
+from oslo_config.cfg import ConfigOpts
 
 from kolla.common.sources import SOURCES
 from kolla.common.users import USERS
 from kolla.version import version_info as version
-
+from typing import Union, List, Tuple, Optional
 
 BASE_OS_DISTRO = ['centos', 'debian', 'rocky', 'ubuntu']
 BASE_ARCH = ['x86_64', 'aarch64']
@@ -140,6 +141,7 @@ _PROFILE_OPTS = [
 
 hostarch = os.uname()[4]
 
+# _CLI_OPTS defines the flags that you can set when calling `kolla` command.
 _CLI_OPTS = [
     cfg.StrOpt('base', short='b', default='rocky',
                choices=BASE_OS_DISTRO,
@@ -177,8 +179,8 @@ _CLI_OPTS = [
                  help=('Build a pre-defined set of images, see [profiles]'
                        ' section in config. The default profiles are:'
                        ' {}'.format(', '.join(
-                           [opt.name for opt in _PROFILE_OPTS])
-                       ))),
+                     [opt.name for opt in _PROFILE_OPTS])
+                 ))),
     cfg.BoolOpt('push', default=False,
                 help='Push images after building'),
     cfg.IntOpt('push-threads', default=1, min=1,
@@ -226,6 +228,7 @@ _CLI_OPTS = [
                 help='Attempt to pull a newer version of the base image'),
     cfg.StrOpt('work-dir', help=('Path to be used as working directory.'
                                  ' By default, a temporary dir is created')),
+    # `squash` is used to reduce the size of the final image, set True to turn on
     cfg.BoolOpt('squash', default=False,
                 help=('Squash the image layers. WARNING: it will consume lots'
                       ' of disk IO. "docker-squash" tool is required, install'
@@ -282,7 +285,13 @@ _BASE_OPTS = [
 ]
 
 
-def get_source_opts(type_=None, location=None, reference=None, enabled=True):
+def get_source_opts(type_: Optional[str] = None,
+                    location: Optional[str] = None,
+                    reference: Optional[str] = None,
+                    enabled: bool = True) -> List[Union[cfg.StrOpt, cfg.BoolOpt]]:
+    """
+    NOTE: do later
+    """
     return [cfg.StrOpt('type', choices=['local', 'git', 'url'],
                        default=type_,
                        help='Source location type'),
@@ -292,10 +301,10 @@ def get_source_opts(type_=None, location=None, reference=None, enabled=True):
                        help=('Git reference to pull, commit sha, tag '
                              'or branch name')),
             cfg.BoolOpt('enabled', default=enabled,
-                        help=('Whether the source is enabled'))]
+                        help='Whether the source is enabled')]
 
 
-def get_user_opts(uid, gid, group):
+def get_user_opts(uid: int, gid: int, group: str) -> List[Union[cfg.StrOpt, cfg.IntOpt]]:
     return [
         cfg.IntOpt('uid', default=uid, help='The user id'),
         cfg.IntOpt('gid', default=gid, help='The group id'),
@@ -304,23 +313,31 @@ def get_user_opts(uid, gid, group):
 
 
 def gen_all_user_opts():
+    """
+    NOTE: do later
+    """
     for name, params in USERS.items():
         uid = params['uid']
         gid = params['gid']
         try:
-            group = params['group']
+            group = params['group']  # is the group name
         except KeyError:
-            group = name[:-5]
+            group = name[:-5]  # remove the _user suffix
         yield name, get_user_opts(uid, gid, group)
 
 
-def gen_all_source_opts():
+def gen_all_source_opts() -> Tuple[str, List[Union[cfg.StrOpt, cfg.BoolOpt]]]:
+    """
+    Read all default resources from the default resources file that can be downloaded to run the components in the
+    OpenStack cloud.
+    """
     for name, params in SOURCES.items():
         type_ = params['type']
         location = params['location']
         reference = params.get('reference')
         enabled = params.get('enabled', True)
-        yield name, get_source_opts(type_, location, reference, enabled)
+        source_opts = get_source_opts(type_, location, reference, enabled)
+        yield name, source_opts
 
 
 def list_opts():
@@ -332,16 +349,29 @@ def list_opts():
                            )
 
 
-def parse(conf, args, usage=None, prog=None,
-          default_config_files=None):
+def parse(conf: ConfigOpts,
+          args: List[str],
+          usage: Optional[str] = None,
+          prog: Optional[str] = None,
+          default_config_files: Optional[str] = None) -> None:
+    """
+    Parse the command line arguments and the configuration file(s) to build the images.
+    All the configuration options are registered in the configuration object `conf`.
+
+    :param conf: the configuration object
+    :param args: the command line arguments
+    :param usage: a usage string (`prog` will be expanded)
+    :param prog: the name of the program (defaults to sys.argv[0] basename, without extension .py)
+    :param default_config_files: the path of file `kolla-build.conf` to read the configuration,
+                                    default is `/etc/kolla/kolla-build.conf`
+    """
+
     conf.register_cli_opts(_CLI_OPTS)
     conf.register_opts(_BASE_OPTS)
     conf.register_opts(_PROFILE_OPTS, group='profiles')
-    all_source_opts = gen_all_source_opts()
-    all_users = gen_all_user_opts()
-    for name, opts in all_source_opts:
+    for name, opts in gen_all_source_opts():
         conf.register_opts(opts, name)
-    for name, opts in all_users:
+    for name, opts in gen_all_user_opts():
         conf.register_opts(opts, name)
 
     conf(args=args,
@@ -351,14 +381,13 @@ def parse(conf, args, usage=None, prog=None,
          version=version.cached_version_string(),
          default_config_files=default_config_files)
 
-    # NOTE(jeffrey4l): set the default base tag based on the
-    # base option
     conf.set_default('base_tag', DEFAULT_BASE_TAGS[conf.base]['tag'])
     prefix = '' if conf.openstack_release == 'master' else 'stable-'
-    openstack_branch = '{}{}'.format(prefix, conf.openstack_release)
+    openstack_branch = '{}{}'.format(prefix, conf.openstack_release)  # the branch from git, such as stable-zed
     openstack_branch_slashed = openstack_branch.replace('-', '/')
     conf.set_default('openstack_branch', openstack_branch)
     conf.set_default('openstack_branch_slashed', openstack_branch_slashed)
 
+    # `conf.base_image` is string, specify the Linux distro is used
     if not conf.base_image:
         conf.base_image = DEFAULT_BASE_TAGS[conf.base]['name']

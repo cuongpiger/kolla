@@ -1,17 +1,7 @@
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+"""
+Define the users and groups used by Kolla containers.
+"""
 
-# NOTE(SamYaple): Only increment the UID. Never reuse old or removed UIDs.
-#     Starting point 42400+ was chosen arbitrarily to ensure no conflicts
 USERS = {
     'kolla-user': {
         'uid': 42400,
@@ -237,7 +227,7 @@ USERS = {
         'uid': 42464,
         'gid': 42464,
     },
-    'qdrouterd-user': {   # unused user (qdrouterd dropped)
+    'qdrouterd-user': {  # unused user (qdrouterd dropped)
         'uid': 42465,
         'gid': 42465,
     },

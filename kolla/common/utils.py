@@ -15,6 +15,8 @@ import os
 import subprocess  # nosec
 import sys
 
+_LOGGER_FORMAT = "[%(levelname)5s][%(asctime)s] %(name)s:%(lineno)s ==> %(message)s"
+
 
 def make_a_logger(conf=None, image_name=None):
     if image_name:
@@ -51,11 +53,23 @@ def make_a_logger(conf=None, image_name=None):
     return log
 
 
+def make_basic_logger(path: str):
+    if not path:
+        raise ValueError('Path is empty')
+
+    logger = logging.getLogger(path)
+    c_handler = logging.StreamHandler()
+    c_handler.setFormatter(logging.Formatter(_LOGGER_FORMAT))
+    logger.addHandler(c_handler)
+    logger.setLevel(logging.DEBUG)
+
+    return logger
+
+
 LOG = make_a_logger()
 
 
 def get_docker_squash_version():
-
     try:
         stdout = subprocess.check_output(  # nosec
             ['docker-squash', '--version'], stderr=subprocess.STDOUT)
@@ -71,7 +85,6 @@ def squash(old_image, new_image,
            from_layer=None,
            cleanup=False,
            tmp_dir=None):
-
     cmds = ['docker-squash', '--tag', new_image, old_image]
     if cleanup:
         cmds += ['--cleanup']
