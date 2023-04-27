@@ -11,6 +11,8 @@
 # limitations under the License.
 
 import datetime
+from typing import List, Optional
+
 import docker
 import json
 import os
@@ -20,7 +22,7 @@ import shutil
 import sys
 import tempfile
 import time
-import logging
+from logging import Logger
 
 import jinja2
 from oslo_config.cfg import ConfigOpts
@@ -47,23 +49,37 @@ LOG = make_basic_logger(__name__)
 
 
 class Image(object):
-    def __init__(self, name, canonical_name, path, parent_name='',
-                 status=Status.UNPROCESSED, parent=None,
-                 source=None, logger=None, docker_client=None):
-        self.name = name
-        self.canonical_name = canonical_name
-        self.path = path
-        self.status = status
-        self.parent = parent
-        self.source = source
-        self.parent_name = parent_name
+    def __init__(self,
+                 name: str,
+                 canonical_name: str,
+                 path: str,
+                 parent_name: str = '',
+                 status: Status = Status.UNPROCESSED,
+                 parent: Optional[str] = None,
+                 source: Optional[dict] = None,
+                 logger: Optional[Logger] = None,
+                 docker_client: Optional[docker.APIClient] = None):
+        """
+        :param source: Tell Kolla know where the image resources comes from to build the image.
+        """
+
+        self.name: str = name
+        self.canonical_name: str = canonical_name
+        self.path: str = path
+        self.status: Status = status
+        self.parent: str = parent
+        self.source: dict = source
+        self.parent_name: str = parent_name
         if logger is None:
             logger = utils.make_a_logger(image_name=name)
-        self.logger = logger
+        self.logger: Logger = logger
         self.children = []
         self.plugins = []
         self.additions = []
-        self.dc = docker_client
+        self.dc: Optional[docker.APIClient] = docker_client
+
+    def __str__(self):
+        return f"name: {self.name}, canonical name: {self.canonical_name}, path: {self.path}, parent: {self.parent}"
 
     def copy(self):
         c = Image(self.name, self.canonical_name, self.path,
@@ -110,7 +126,7 @@ class KollaWorker(object):
             self.debian_arch = 'arm64'
         elif self.base_arch == 'x86_64':
             self.debian_arch = 'amd64'
-        self.images = list()
+        self.images: List[Image] = list()
         self.openstack_release = conf.openstack_release
         self.openstack_branch = conf.openstack_branch
         self.openstack_branch_slashed = conf.openstack_branch_slashed
@@ -324,7 +340,7 @@ class KollaWorker(object):
                       'namespace': self.namespace,
                       'openstack_release': self.openstack_release,
                       'openstack_branch': self.openstack_branch,
-                      'openstack_branch_slashed':self.openstack_branch_slashed,
+                      'openstack_branch_slashed': self.openstack_branch_slashed,
                       'tag': self.tag,
                       'maintainer': self.maintainer,
                       'kolla_version': kolla_version,
@@ -372,7 +388,9 @@ class KollaWorker(object):
         return {tpl_name: tpl_content}
 
     def find_dockerfiles(self):
-        """Recursive search for Dockerfiles in the working directory."""
+        """
+        Recursive search for Dockerfiles in the working directory.
+        """
         self.docker_build_paths = list()
         path = self.working_dir
         filename = 'Dockerfile.j2'
@@ -604,83 +622,79 @@ class KollaWorker(object):
                 self.image_statuses_allowed_to_fail)
 
     def build_image_list(self):
-        def process_source_installation(image, section) -> dict:
+        def process_source_installation(image: Image, section: str) -> dict:
+            """
+            Read the image resource from the /etc/kolla/kolla-build.conf and then returning the image resource for the
+            proper image.
+
+            :param image: The image object to be processed.
+            :param section: The section of the image object.
+
+            :return dict: The image resource for the proper image.
+            """
             installation = dict()
             if self.conf._get('type', self.conf._get_group(section)) is None:
                 if image.parent_name is None:
                     LOG.debug('No source location found in section %s', section)
             else:
-                installation['type'] = self.conf[section]['type']
-                installation['source'] = self.conf[section]['location']
-                installation['name'] = section
-                installation['enabled'] = self.conf[section]['enabled']
+                installation['type']: str = self.conf[section]['type']
+                installation['source']: str = self.conf[section]['location']
+                installation['name']: str = section
+                installation['enabled']: bool = self.conf[section]['enabled']
                 if installation['type'] == 'git':
                     installation['reference'] = self.conf[section]['reference']
-                    LOG.info('Using Git %s at branch %s for image %s with enable=%s', installation['source'],
-                             installation['reference'], installation['name'], installation['enabled'])
+                    LOG.debug('Using Git %s at branch %s as the image resources for image %s with enable=%s',
+                              installation['source'], installation['reference'], installation['name'],
+                              installation['enabled'])
                 else:
-                    LOG.info('Using type %s at %s for image %s with enable=%s', installation['type'],
-                             installation['source'], installation['name'], installation['enabled'])
+                    LOG.debug('Using %s at %s as the image resources for image %s with enable=%s',
+                              installation['type'], installation['source'], installation['name'],
+                              installation['enabled'])
             return installation
 
-        all_sections = (set(self.conf._groups.keys()) |
-                        set(self.conf.list_all_sections()))
+        all_sections = (set(self.conf._groups.keys()) | set(self.conf.list_all_sections()))
 
         for path in self.docker_build_paths:
             # Reading parent image name
             with open(os.path.join(path, 'Dockerfile')) as f:
                 content = f.read()
 
-            image_name = os.path.basename(path)
-            canonical_name = (self.namespace + '/' + self.image_prefix +
-                              image_name + ':' + self.tag)
+            image_name: str = os.path.basename(path)
+            canonical_name: str = (self.namespace + '/' + self.image_prefix + image_name + ':' + self.tag)
             parent_search_pattern = re.compile(r'^FROM.*$', re.MULTILINE)
             match = re.search(parent_search_pattern, content)
-            if match:
-                parent_name = match.group(0).split(' ')[1]
-            else:
-                parent_name = ''
-            del match
-            image = Image(image_name, canonical_name, path,
-                          parent_name=parent_name,
-                          logger=utils.make_a_logger(self.conf, image_name),
-                          docker_client=self.dc)
 
-            # NOTE(jeffrey4l): register the opts if the section didn't
-            # register in the kolla/common/config.py file
+            if match:
+                parent_name: str = match.group(0).split(' ')[1]
+            else:
+                parent_name: str = ''
+            del match
+
+            image: Image = Image(image_name, canonical_name, path,
+                                 parent_name=parent_name,
+                                 logger=utils.make_a_logger(self.conf, image_name),
+                                 docker_client=self.dc)
+            LOG.debug(f'Build the image {image}')
+            LOG.debug(f"groups {self.conf._groups}")
             if image.name not in self.conf._groups:
-                self.conf.register_opts(common_config.get_source_opts(),
-                                        image.name)
+                self.conf.register_opts(common_config.get_source_opts(), image.name)
+
             image.source = process_source_installation(image, image.name)
             for plugin in [match.group(0) for match in
-                           (re.search('^{}-plugin-.+'.format(image.name),
-                                      section) for section in
-                            all_sections) if match]:
+                           (re.search('^{}-plugin-.+'.format(image.name), section)
+                            for section in all_sections) if match]:
                 try:
-                    self.conf.register_opts(
-                        common_config.get_source_opts(),
-                        plugin
-                    )
+                    self.conf.register_opts(common_config.get_source_opts(), plugin)
                 except cfg.DuplicateOptError:
-                    LOG.debug('Plugin %s already registered in config',
-                              plugin)
-                image.plugins.append(
-                    process_source_installation(image, plugin))
-            for addition in [
-                match.group(0) for match in
-                (re.search('^{}-additions-.+'.format(image.name),
-                           section) for section in all_sections) if match]:
+                    LOG.debug('Plugin %s already registered in config', plugin)
+                image.plugins.append(process_source_installation(image, plugin))
+            for addition in [match.group(0) for match in (re.search('^{}-additions-.+'.format(image.name), section)
+                                                          for section in all_sections) if match]:
                 try:
-                    self.conf.register_opts(
-                        common_config.get_source_opts(),
-                        addition
-                    )
+                    self.conf.register_opts(common_config.get_source_opts(), addition)
                 except cfg.DuplicateOptError:
-                    LOG.debug('Addition %s already registered in config',
-                              addition)
-                image.additions.append(
-                    process_source_installation(image, addition))
-
+                    LOG.debug('Addition %s already registered in config', addition)
+                image.additions.append(process_source_installation(image, addition))
             self.images.append(image)
 
     def save_dependency(self, to_file):
