@@ -41,6 +41,7 @@ COPY extend_start.sh /usr/local/bin/kolla_extend_start
     && chown -R {{ fluentd_user }}: /var/run/{{ fluentd_user }} \
     && chmod 644 /usr/local/bin/kolla_extend_start
 
+{# Install the fluentd plugins  #}
 {% block fluentd_plugins_install %}
 
 {% set fluentd_plugins = [

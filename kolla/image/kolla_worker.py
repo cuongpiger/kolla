@@ -108,6 +108,9 @@ class Image(object):
 class KollaWorker(object):
 
     def __init__(self, conf: ConfigOpts):
+        """
+        Initialize the KollaWorker class.
+        """
         self.conf = conf
         self.images_dir = self._get_images_dir()
         self.registry = conf.registry
@@ -117,8 +120,8 @@ class KollaWorker(object):
             self.namespace = conf.namespace
         self.base = conf.base
         self.use_dumb_init = conf.use_dumb_init
-        self.base_tag = conf.base_tag
-        self.tag = conf.tag
+        self.base_tag: str = conf.base_tag  # version name of Linux Distro, such as 22.04, stream9, bullseye
+        self.tag: str = conf.tag  # tag is the version of the Kolla project, such as 15.1.1
         self.repos_yaml = conf.repos_yaml
         self.base_arch = conf.base_arch
         self.debian_arch = self.base_arch
@@ -326,6 +329,8 @@ class KollaWorker(object):
             image_name = path.split("/")[-1]
             ts = time.time()
             build_date = datetime.datetime.fromtimestamp(ts).strftime('%Y%m%d')
+
+            # read all the config variable to this variable, this variable will be passed to jinja template
             values = {'base_distro': self.base,
                       'base_image': self.conf.base_image,
                       'base_distro_tag': self.base_tag,
@@ -351,15 +356,16 @@ class KollaWorker(object):
                       'rpm_setup': self.rpm_setup,
                       'build_date': build_date,
                       'clean_package_cache': self.clean_package_cache}
+
             env = jinja2.Environment(loader=jinja2.FileSystemLoader(self.working_dir))
             env.filters.update(self._get_filters())
             env.globals.update(self._get_methods())
-            tpl_path = os.path.join(
-                os.path.relpath(path, self.working_dir),
-                template_name)
 
-            template = env.get_template(tpl_path)
-            if self.conf.template_override:
+            # get the path of the Dockerfile.j2 file
+            tpl_path = os.path.join(os.path.relpath(path, self.working_dir), template_name)
+
+            template = env.get_template(tpl_path)  # read this Dockerfile.j2 file
+            if self.conf.template_override:  # check allow override
                 tpl_dict = self._merge_overrides(self.conf.template_override)
                 template_name = os.path.basename(list(tpl_dict.keys())[0])
                 values['parent_template'] = template
@@ -622,19 +628,20 @@ class KollaWorker(object):
                 self.image_statuses_allowed_to_fail)
 
     def build_image_list(self):
-        def process_source_installation(image: Image, section: str) -> dict:
+        def process_source_installation(image_: Image, section: str) -> dict:
             """
             Read the image resource from the /etc/kolla/kolla-build.conf and then returning the image resource for the
             proper image.
 
-            :param image: The image object to be processed.
-            :param section: The section of the image object.
+            :param image_: The image object to be processed.
+            :param section: The name of the service that Kolla-Ansible needs to run as a container, such as magnum-api,
+                magnum-conductor, keystone-fernet, etc.
 
-            :return dict: The image resource for the proper image.
+            :return : The image resource for the proper image.
             """
             installation = dict()
             if self.conf._get('type', self.conf._get_group(section)) is None:
-                if image.parent_name is None:
+                if image_.parent_name is None:
                     LOG.debug('No source location found in section %s', section)
             else:
                 installation['type']: str = self.conf[section]['type']
@@ -652,6 +659,9 @@ class KollaWorker(object):
                               installation['enabled'])
             return installation
 
+        # self.conf._groups.keys() is the list of all sections by default in file kolla/common/config.py
+        # and the self.conf.list_all_sections() is the list of all sections in the /etc/kolla/kolla-build.conf
+        # which user defined.
         all_sections = (set(self.conf._groups.keys()) | set(self.conf.list_all_sections()))
 
         for path in self.docker_build_paths:
@@ -674,12 +684,10 @@ class KollaWorker(object):
                                  parent_name=parent_name,
                                  logger=utils.make_a_logger(self.conf, image_name),
                                  docker_client=self.dc)
-            LOG.debug(f'Build the image {image}')
-            LOG.debug(f"groups {self.conf._groups}")
             if image.name not in self.conf._groups:
                 self.conf.register_opts(common_config.get_source_opts(), image.name)
 
-            image.source = process_source_installation(image, image.name)
+            image.source = process_source_installation(image, image.name)  # get the image resource
             for plugin in [match.group(0) for match in
                            (re.search('^{}-plugin-.+'.format(image.name), section)
                             for section in all_sections) if match]:
