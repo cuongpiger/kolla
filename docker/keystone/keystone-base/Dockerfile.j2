@@ -35,9 +35,16 @@ ADD keystone-base-archive /keystone-base-source
     '/keystone[ldap]',
 ] %}
 
+{% set keystone_extended_requirements = '/keystone/extended_requirements.txt' %}
+
 RUN ln -s keystone-base-source/* keystone \
     && {{ macros.install_pip(keystone_base_pip_packages | customizable("pip_packages")) }} \
     && mkdir -p /etc/keystone /var/www/cgi-bin/keystone \
+    && if [ -e {{ keystone_extended_requirements }} ]; then \
+           {{ macros.install_required_pip(keystone_extended_requirements) }}
+       else \
+           true
+       fi \
     && cp -r /keystone/etc/* /etc/keystone/ \
     && cp /var/lib/kolla/venv/bin/keystone-wsgi-admin /var/www/cgi-bin/keystone/admin \
     && cp /var/lib/kolla/venv/bin/keystone-wsgi-public /var/www/cgi-bin/keystone/main

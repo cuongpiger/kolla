@@ -76,3 +76,7 @@ RUN usermod --append --home {{ homedir }} --groups kolla {{ name }} \
 {{ handle_repos(repos, 'disable') }}
 
 {% endmacro %}
+
+{% macro install_required_pip(requirement_file) %}
+    python3 -m pip --no-cache-dir install -r {{ requirement_file }}
+{% endmacro %}

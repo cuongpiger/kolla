@@ -189,8 +189,7 @@ _CLI_OPTS = [
     cfg.IntOpt('retries', short='r', default=3, min=0,
                help='The number of times to retry while building'),
     cfg.MultiOpt('regex', types.String(), positional=True, required=False,
-                 help=('Build only images matching regex and its'
-                       ' dependencies')),
+                 help='Build only images matching regex and its dependencies'),
     cfg.StrOpt('registry',
                help=('The docker registry host. The default registry host'
                      ' is Docker Hub')),
@@ -258,7 +257,7 @@ _CLI_OPTS = [
 
 _BASE_OPTS = [
     cfg.StrOpt('maintainer',
-               default='Kolla Project (https://launchpad.net/kolla)',
+               default='Cuong. Duong Manh - cuongdm3@vng.com.vn',
                help='Content of the maintainer label'),
     cfg.StrOpt('distro_package_manager', default=None,
                help=('Use this parameter to override the default package '

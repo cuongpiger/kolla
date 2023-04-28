@@ -116,28 +116,28 @@ def run_build():
     kolla.find_dockerfiles()
     kolla.create_dockerfiles()
     kolla.build_image_list()
-    # kolla.find_parents()
-    # kolla.filter_images()
-    #
-    # if conf.template_only:
-    #     for image in kolla.images:
-    #         if image.status == Status.MATCHED:
-    #             continue
-    #
-    #         shutil.rmtree(image.path)
-    #
-    #     LOG.info('Dockerfiles are generated in %s', kolla.working_dir)
-    #     return
-    #
-    # # We set the atime and mtime to 0 epoch to preserve allow the Docker cache
-    # # to work like we want. A different size or hash will still force a rebuild
-    # kolla.set_time()
-    #
-    # if conf.save_dependency:
-    #     kolla.save_dependency(conf.save_dependency)
-    #     LOG.info('Docker images dependency are saved in %s',
-    #              conf.save_dependency)
-    #     return
+    kolla.find_parents()
+    kolla.filter_images()
+
+    if conf.template_only:
+        for image in kolla.images:
+            if image.status == Status.MATCHED:
+                continue
+
+            shutil.rmtree(image.path)
+
+        LOG.info('Dockerfiles are generated in %s', kolla.working_dir)
+        return
+
+    # We set the atime and mtime to 0 epoch to preserve allow the Docker cache
+    # to work like we want. A different size or hash will still force a rebuild
+    kolla.set_time()
+
+    if conf.save_dependency:
+        kolla.save_dependency(conf.save_dependency)
+        LOG.info('Docker images dependency are saved in %s',
+                 conf.save_dependency)
+        return
     # if conf.list_images:
     #     kolla.list_images()
     #     return

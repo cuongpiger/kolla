@@ -50,30 +50,28 @@ LOG = make_basic_logger(__name__)
 
 class Image(object):
     def __init__(self,
-                 name: str,
+                 name: str,  # the image name
                  canonical_name: str,
-                 path: str,
-                 parent_name: str = '',
+                 # with the format "namespace/image_prefix+image_name:tag", this is the image name used by docker
+                 path: str,  # the path of the image Dockerfile.j2 file
+                 parent_name: str = '',  # the name of the parent image
                  status: Status = Status.UNPROCESSED,
-                 parent: Optional[str] = None,
-                 source: Optional[dict] = None,
+                 parent: Optional["Image"] = None,
+                 source: Optional[dict] = None,  # the image resources to build the image, such as git, tar file
                  logger: Optional[Logger] = None,
                  docker_client: Optional[docker.APIClient] = None):
-        """
-        :param source: Tell Kolla know where the image resources comes from to build the image.
-        """
 
         self.name: str = name
         self.canonical_name: str = canonical_name
         self.path: str = path
         self.status: Status = status
-        self.parent: str = parent
+        self.parent: "Image" = parent  # the parent image object
         self.source: dict = source
         self.parent_name: str = parent_name
         if logger is None:
             logger = utils.make_a_logger(image_name=name)
         self.logger: Logger = logger
-        self.children = []
+        self.children: List["Image"] = []  # list of the child images
         self.plugins = []
         self.additions = []
         self.dc: Optional[docker.APIClient] = docker_client
@@ -115,15 +113,16 @@ class KollaWorker(object):
         self.images_dir = self._get_images_dir()
         self.registry = conf.registry
         if self.registry:
-            self.namespace = self.registry + '/' + conf.namespace
+            # self.namespace is the prefix of the OpenStack component image
+            self.namespace: str = self.registry + '/' + conf.namespace  # such as, kolla, openstack
         else:
-            self.namespace = conf.namespace
-        self.base = conf.base
+            self.namespace: str = conf.namespace
+        self.base: str = conf.base  # is the Linux distro, such as centos, rocky, debian, ubuntu
         self.use_dumb_init = conf.use_dumb_init
         self.base_tag: str = conf.base_tag  # version name of Linux Distro, such as 22.04, stream9, bullseye
         self.tag: str = conf.tag  # tag is the version of the Kolla project, such as 15.1.1
         self.repos_yaml = conf.repos_yaml
-        self.base_arch = conf.base_arch
+        self.base_arch = conf.base_arch  # the architecture of the Linux distro, such as x86_64, aarch64
         self.debian_arch = self.base_arch
         if self.base_arch == 'aarch64':
             self.debian_arch = 'arm64'
@@ -161,10 +160,9 @@ class KollaWorker(object):
             self.base_package_type = self.conf.base_package_type
 
         self.clean_package_cache = self.conf.clean_package_cache
-
-        self.image_prefix = self.conf.image_name_prefix
-
-        self.regex = conf.regex
+        self.image_prefix: str = self.conf.image_name_prefix  # the image prefix, in my case is DEV, PROD, etc
+        self.regex: List[
+            str] = conf.regex  # List of all the regex that can be matched with the OpenStack components that you want to build
         self.image_statuses_bad = dict()
         self.image_statuses_good = dict()
         self.image_statuses_unmatched = dict()
@@ -355,7 +353,8 @@ class KollaWorker(object):
                       'distro_package_manager': self.distro_package_manager,
                       'rpm_setup': self.rpm_setup,
                       'build_date': build_date,
-                      'clean_package_cache': self.clean_package_cache}
+                      'clean_package_cache': self.clean_package_cache
+                      }
 
             env = jinja2.Environment(loader=jinja2.FileSystemLoader(self.working_dir))
             env.filters.update(self._get_filters())
@@ -397,8 +396,8 @@ class KollaWorker(object):
         """
         Recursive search for Dockerfiles in the working directory.
         """
-        self.docker_build_paths = list()
-        path = self.working_dir
+        self.docker_build_paths = list()  # all the paths of the Dockerfile.j2 files which inside the working directory
+        path = self.working_dir  # from the /tmp directory
         filename = 'Dockerfile.j2'
 
         for root, dirs, names in os.walk(path):
@@ -414,7 +413,9 @@ class KollaWorker(object):
             shutil.rmtree(self.temp_dir)
 
     def filter_images(self):
-        """Filter which images to build."""
+        """
+        Filter which images to build.
+        """
         filter_ = list()
 
         if self.regex:
@@ -422,9 +423,7 @@ class KollaWorker(object):
         elif self.conf.profile:
             for profile in self.conf.profile:
                 if profile not in self.conf.profiles:
-                    self.conf.register_opt(cfg.ListOpt(profile,
-                                                       default=[]),
-                                           'profiles')
+                    self.conf.register_opt(cfg.ListOpt(profile, default=[]), 'profiles')
                 if len(self.conf.profiles[profile]) == 0:
                     msg = 'Profile: {} does not exist'.format(profile)
                     raise ValueError(msg)
@@ -433,7 +432,6 @@ class KollaWorker(object):
 
         # mark unbuildable images and their children
         base = self.base
-
         tag_element = r'(%s|%s)' % (base, self.base_arch)
         tag_re = re.compile(r'^%s(\+%s)*$' % (tag_element, tag_element))
         unbuildable_images = set()
@@ -663,19 +661,19 @@ class KollaWorker(object):
         # and the self.conf.list_all_sections() is the list of all sections in the /etc/kolla/kolla-build.conf
         # which user defined.
         all_sections = (set(self.conf._groups.keys()) | set(self.conf.list_all_sections()))
-
         for path in self.docker_build_paths:
             # Reading parent image name
             with open(os.path.join(path, 'Dockerfile')) as f:
                 content = f.read()
 
-            image_name: str = os.path.basename(path)
+            image_name: str = os.path.basename(path)  # get the image name, such as magnum-api, magnum-conductor, etc.
             canonical_name: str = (self.namespace + '/' + self.image_prefix + image_name + ':' + self.tag)
             parent_search_pattern = re.compile(r'^FROM.*$', re.MULTILINE)
             match = re.search(parent_search_pattern, content)
 
             if match:
-                parent_name: str = match.group(0).split(' ')[1]
+                # find the parent image depends on the FROM in the Dockerfile
+                parent_name: str = match.group(0).split(' ')[1]  # get the parent image name
             else:
                 parent_name: str = ''
             del match
@@ -757,15 +755,17 @@ class KollaWorker(object):
         json.dump(ancestry, sys.stdout, indent=2)
 
     def find_parents(self):
-        """Associate all images with parents and children."""
+        """
+        Associate all images with parents and children.
+        """
         sort_images = dict()
 
-        for image in self.images:
+        for image in self.images:  # type: Image
             sort_images[image.canonical_name] = image
 
-        for parent_name, parent in sort_images.items():
-            for image in sort_images.values():
-                if (image.parent_name == parent_name):
+        for parent_name, parent in sort_images.items():  # type: str, Image
+            for image in sort_images.values():  # type: Image
+                if image.parent_name == parent_name:  # type: str
                     parent.children.append(image)
                     image.parent = parent
 
