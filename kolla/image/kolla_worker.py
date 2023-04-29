@@ -11,7 +11,7 @@
 # limitations under the License.
 
 import datetime
-from typing import List, Optional
+from typing import List, Optional, Set, Dict
 
 import docker
 import json
@@ -416,11 +416,12 @@ class KollaWorker(object):
         """
         Filter which images to build.
         """
-        filter_ = list()
+        filter_: List[str] = list()
 
         if self.regex:
             filter_ += self.regex
         elif self.conf.profile:
+            # check if the user specified `profile` flag in the CLI
             for profile in self.conf.profile:
                 if profile not in self.conf.profiles:
                     self.conf.register_opt(cfg.ListOpt(profile, default=[]), 'profiles')
@@ -431,38 +432,41 @@ class KollaWorker(object):
                     filter_ += self.conf.profiles[profile]
 
         # mark unbuildable images and their children
-        base = self.base
-        tag_element = r'(%s|%s)' % (base, self.base_arch)
-        tag_re = re.compile(r'^%s(\+%s)*$' % (tag_element, tag_element))
-        unbuildable_images = set()
+        base = self.base  # get the Linux distro that you want to build as the base of image
+        tag_element = r'(%s|%s)' % (
+            base, self.base_arch)  # create a piece of regex, like: (ubuntu|x86_64) with | means `or`
+        tag_re = re.compile(r'^%s(\+%s)*$' % (tag_element, tag_element))  # create the regex filter
+        unbuildable_images: Set[Dict[str, str]] = set()
 
+        # Depends on each Linux distro, there are some service, components that are not supported for this distro,
+        # we need to mark them as unbuildable to avoid building them
         if not self.conf.enable_unbuildable:
             for set_tag in UNBUILDABLE_IMAGES:
                 if tag_re.match(set_tag):
+                    # if your system falls into the category of unbuildable images, add the unbuildable services, cores
+                    # that are not supported for this distro to the unbuildable_images set
                     unbuildable_images.update(UNBUILDABLE_IMAGES[set_tag])
 
         if unbuildable_images:
-            for image in self.images:
+            # if there are some unbuildable images
+            for image in self.images:  # type: Image
                 if image.name in unbuildable_images:
+                    # if the image falls into the set of unbuildable images, mark it as unbuildable
                     image.status = Status.UNBUILDABLE
                 else:
-                    # let's check ancestors
-                    # if any of them is unbuildable then we mark it
-                    # and then mark image
-                    build_image = True
-                    ancestor_image = image
+                    # Let's check all the ancestors of this image, if any of them is unbuildable then we mark this image
+                    # and all children images as unbuildable
+                    build_image: bool = True
+                    ancestor_image: Image = image
                     while (ancestor_image.parent is not None):
+                        # if this image has the parent image
                         ancestor_image = ancestor_image.parent
-                        if ancestor_image.name in unbuildable_images or \
-                                ancestor_image.status == Status.UNBUILDABLE:
+                        if ancestor_image.name in unbuildable_images or ancestor_image.status == Status.UNBUILDABLE:
                             build_image = False
                             ancestor_image.status = Status.UNBUILDABLE
                             break
                     if not build_image:
                         image.status = Status.UNBUILDABLE
-
-        # When we want to build a subset of images then filter_ part kicks in.
-        # Otherwise we just mark everything buildable as matched for build.
 
         # First, determine which buildable images match.
         if filter_:
@@ -491,9 +495,10 @@ class KollaWorker(object):
                     image.status = Status.MATCHED
 
         # Next, mark any skipped images.
-        for image in self.images:
+        for image in self.images:  # type: Image
             if image.status != Status.MATCHED:
                 continue
+
             # Skip image if --skip-existing was given and image exists.
             if (self.conf.skip_existing and image.in_docker_cache()):
                 LOG.debug('Skipping existing image %s', image.name)
@@ -502,6 +507,10 @@ class KollaWorker(object):
             elif self.conf.skip_parents and image.children:
                 LOG.debug('Skipping parent image %s', image.name)
                 image.status = Status.SKIPPED
+
+        # Finally, mark any images that are not matched.
+        built_images = '\n\t'.join([image.name for image in self.images if image.status == Status.MATCHED])
+        LOG.debug(f"We will build these images: {built_images}")
 
     def summary(self):
         """Walk the dictionary of images statuses and print results."""
