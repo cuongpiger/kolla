@@ -1,13 +1,13 @@
 build-keystone-image:
-	@python ./kolla/cmd/build.py --image-name-prefix DEV- -b ubuntu -d True
+	@python ./kolla/cmd/build.py --image-name-prefix DEV- --base ubuntu --debug True
 
 build-from-file:
-	@python ./kolla/cmd/build.py --image-name-prefix DEV- -b ubuntu -d True
+	@python ./kolla/cmd/build.py --image-name-prefix DEV- --base ubuntu --debug True
 
 
 # for the installed kolla
 true-build-keystone-image:
-	@kolla-build -b ubuntu keystone
+	@kolla-build --base ubuntu keystone
 
 
 true-reinstall:
