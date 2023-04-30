@@ -119,11 +119,13 @@ def run_build():
     kolla.find_parents()
     kolla.filter_images()
 
+    # Only generate the Dockerfile for the images, then exit
     if conf.template_only:
         for image in kolla.images:
             if image.status == Status.MATCHED:
                 continue
 
+            # Delete all the unnecessary directory, files, and so on
             shutil.rmtree(image.path)
 
         LOG.info('Dockerfiles are generated in %s', kolla.working_dir)

@@ -1,0 +1,18 @@
+// Docker Images Dependency
+digraph {
+rankdir=LR	base
+	"barbican-base"
+	"openstack-base" -> "barbican-base"
+	"barbican-keystone-listener"
+	"barbican-base" -> "barbican-keystone-listener"
+	"keystone-fernet"
+	"keystone-base" -> "keystone-fernet"
+	"keystone-ssh"
+	"keystone-base" -> "keystone-ssh"
+	keystone
+	"keystone-base" -> keystone
+	"keystone-base"
+	"openstack-base" -> "keystone-base"
+	"openstack-base"
+	base -> "openstack-base"
+}
