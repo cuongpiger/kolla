@@ -19,6 +19,7 @@ import tarfile
 
 import git
 import requests
+from oslo_config.cfg import ConfigOpts
 from requests import exceptions as requests_exc
 
 from kolla.common import task  # noqa
@@ -123,9 +124,9 @@ class PushTask(DockerTask):
 class BuildTask(DockerTask):
     """Task that builds out an image."""
 
-    def __init__(self, conf, image, push_queue):
+    def __init__(self, conf: ConfigOpts, image, push_queue):
         super(BuildTask, self).__init__()
-        self.conf = conf
+        self.conf: ConfigOpts = conf
         self.image = image
         self.push_queue = push_queue
         self.forcerm = not conf.keep

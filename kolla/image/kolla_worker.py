@@ -778,17 +778,16 @@ class KollaWorker(object):
                     parent.children.append(image)
                     image.parent = parent
 
-    def build_queue(self, push_queue):
-        """Organizes Queue list.
-
+    def build_queue(self, push_queue: queue.Queue):
+        """
+        Organizes Queue list.
         Return a list of Queues that have been organized into a hierarchy
         based on dependencies
         """
-        build_queue = queue.Queue()
+        build_queue: queue.Queue[BuildTask] = queue.Queue()
 
-        for image in self.images:
-            if image.status in (Status.UNMATCHED, Status.SKIPPED,
-                                Status.UNBUILDABLE):
+        for image in self.images:  # type: Image
+            if image.status in (Status.UNMATCHED, Status.SKIPPED, Status.UNBUILDABLE):
                 # Don't bother queuing up build tasks for things that
                 # were not matched in the first place... (not worth the
                 # effort to run them, if they won't be used anyway).

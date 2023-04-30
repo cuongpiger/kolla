@@ -18,10 +18,14 @@ import shutil
 import sys
 import threading
 import time
+from typing import List
+
+from oslo_config.cfg import ConfigOpts
 
 from kolla.common import config as common_config
 from kolla.common import utils
 from kolla.image.kolla_worker import KollaWorker
+from kolla.image.tasks import BuildTask
 from kolla.image.utils import LOG
 from kolla.image.utils import Status
 from oslo_config import cfg
@@ -35,8 +39,7 @@ def join_many(threads):
             t.join()
     except KeyboardInterrupt:
         try:
-            LOG.info('Waiting for daemon threads exit. Push Ctrl + c again to'
-                     ' force exit')
+            LOG.info('Waiting for daemon threads exit. Push Ctrl + c again to force exit')
             for t in threads:
                 if t.is_alive():
                     LOG.debug('Waiting thread %s to exit', t.name)
@@ -54,7 +57,7 @@ class WorkerThread(threading.Thread):
     #: Object to be put on worker queues to get them to die.
     tombstone = object()
 
-    def __init__(self, conf, queue):
+    def __init__(self, conf: ConfigOpts, queue):
         super(WorkerThread, self).__init__()
         self.queue = queue
         self.conf = conf
@@ -137,47 +140,48 @@ def run_build():
 
     if conf.save_dependency:
         kolla.save_dependency(conf.save_dependency)
-        LOG.info('Docker images dependency are saved in %s',
-                 conf.save_dependency)
+        LOG.info('Docker images dependency are saved in %s', conf.save_dependency)
         return
-    # if conf.list_images:
-    #     kolla.list_images()
-    #     return
-    # if conf.list_dependencies:
-    #     kolla.list_dependencies()
-    #     return
-    #
-    # push_queue = queue.Queue()
-    # build_queue = kolla.build_queue(push_queue)
-    # workers = []
-    #
-    # with join_many(workers):
-    #     try:
-    #         for x in range(conf.threads):
-    #             worker = WorkerThread(conf, build_queue)
-    #             worker.daemon = True
-    #             worker.start()
-    #             workers.append(worker)
-    #
-    #         for x in range(conf.push_threads):
-    #             worker = WorkerThread(conf, push_queue)
-    #             worker.daemon = True
-    #             worker.start()
-    #             workers.append(worker)
-    #
-    #         # sleep until build_queue is empty
-    #         while build_queue.unfinished_tasks or push_queue.unfinished_tasks:
-    #             time.sleep(3)
-    #
-    #         # ensure all threads exited happily
-    #         push_queue.put(WorkerThread.tombstone)
-    #         build_queue.put(WorkerThread.tombstone)
-    #     except KeyboardInterrupt:
-    #         for w in workers:
-    #             w.should_stop = True
-    #         push_queue.put(WorkerThread.tombstone)
-    #         build_queue.put(WorkerThread.tombstone)
-    #         raise
+
+    if conf.list_images:
+        kolla.list_images()
+        return
+
+    if conf.list_dependencies:
+        kolla.list_dependencies()
+        return
+
+    push_queue = queue.Queue()
+    build_queue: queue.Queue[BuildTask] = kolla.build_queue(push_queue)
+    workers: List[WorkerThread] = []
+
+    with join_many(workers):
+        try:
+            for x in range(conf.threads):
+                worker = WorkerThread(conf, build_queue)
+                worker.daemon = True
+                worker.start()
+                workers.append(worker)
+
+            for x in range(conf.push_threads):
+                worker = WorkerThread(conf, push_queue)
+                worker.daemon = True
+                worker.start()
+                workers.append(worker)
+
+            # sleep until build_queue is empty
+            while build_queue.unfinished_tasks or push_queue.unfinished_tasks:
+                time.sleep(3)
+
+            # ensure all threads exited happily
+            push_queue.put(WorkerThread.tombstone)
+            build_queue.put(WorkerThread.tombstone)
+        except KeyboardInterrupt:
+            for w in workers:
+                w.should_stop = True
+            push_queue.put(WorkerThread.tombstone)
+            build_queue.put(WorkerThread.tombstone)
+            raise
     #
     # if conf.summary:
     #     results = kolla.summary()

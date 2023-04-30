@@ -1,14 +1,13 @@
-build-keystone-image:
-	@python ./kolla/cmd/build.py --image-name-prefix DEV- --base ubuntu --debug True
+dev-build-keystone-image:
+	@python ./kolla/cmd/build.py --image-name-prefix dev- --threads 1 --base ubuntu --debug True keystone
 
-build-from-file:
-	@python ./kolla/cmd/build.py --image-name-prefix DEV- --base ubuntu --debug True
+dev-generate-keystone-image:
+	@python ./kolla/cmd/build.py --save-dependency ./graph/keystone.dot --image-name-prefix dev- --base ubuntu --debug True keystone
 
-# for the installed kolla
-true-build-keystone-image:
-	@kolla-build --base ubuntu keystone
-
-
-true-reinstall:
+dev-reinstall:
 	@pip3 uninstall kolla -y
 	@pip3 install .
+
+# for the installed kolla
+build-keystone-image:
+	@kolla-build --image-name-prefix dev- --base ubuntu keystone
