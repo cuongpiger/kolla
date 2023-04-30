@@ -169,7 +169,7 @@ _CLI_OPTS = [
                 help='Show image dependencies (filtering supported)'),
     cfg.BoolOpt('list-images',
                 help='Show all available images (filtering supported)'),
-    cfg.StrOpt('namespace', short='n', default='kolla',
+    cfg.StrOpt('namespace', short='n', default='manhcuong8499',
                help='The Docker namespace name'),
     cfg.StrOpt('network_mode', default='host',
                help='The network mode for Docker build. Example: host'),
