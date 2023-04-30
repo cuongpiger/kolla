@@ -353,7 +353,7 @@ class KollaWorker(object):
                       'distro_package_manager': self.distro_package_manager,
                       'rpm_setup': self.rpm_setup,
                       'build_date': build_date,
-                      'clean_package_cache': self.clean_package_cache
+                      'clean_package_cache': self.clean_package_cache,
                       }
 
             env = jinja2.Environment(loader=jinja2.FileSystemLoader(self.working_dir))

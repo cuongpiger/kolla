@@ -66,17 +66,10 @@ RUN usermod --append --home {{ homedir }} --groups kolla {{ name }} \
 {%- endmacro %}
 
 {% macro enable_extra_repos(repos) %}
-
 {{ handle_repos(repos, 'enable') }}
-
 {% endmacro %}
+
 
 {% macro disable_extra_repos(repos) %}
-
 {{ handle_repos(repos, 'disable') }}
-
-{% endmacro %}
-
-{% macro install_required_pip(requirement_file) %}
-    python3 -m pip --no-cache-dir install -r {{ requirement_file }}
 {% endmacro %}
