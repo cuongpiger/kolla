@@ -1,18 +1,4 @@
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 import datetime
-from typing import List, Optional, Set, Dict
-
 import docker
 import json
 import os
@@ -22,11 +8,10 @@ import shutil
 import sys
 import tempfile
 import time
-from logging import Logger
-
 import jinja2
+from typing import List, Optional, Set, Dict
+from logging import Logger
 from oslo_config.cfg import ConfigOpts
-
 from kolla.common import config as common_config
 from kolla.common import utils
 from kolla import exception
@@ -41,8 +26,8 @@ from kolla.template import methods as jinja_methods
 from kolla import version
 from oslo_config import cfg
 
-PROJECT_ROOT = os.path.abspath(os.path.join(
-    os.path.dirname(os.path.realpath(__file__)), '../..'))
+PROJECT_ROOT = os.path.abspath(
+    os.path.join(os.path.dirname(os.path.realpath(__file__)), '../..'))
 
 # LOG = make_a_logger()
 LOG = make_basic_logger(__name__)
@@ -199,11 +184,8 @@ class KollaWorker(object):
 
         for path in possible_paths:
             image_path = os.path.join(path, 'docker')
-            # NOTE(SamYaple): We explicitly check for the base folder to ensure
-            #                 this is the correct path
-            # TODO(SamYaple): Improve this to make this safer
             if os.path.exists(os.path.join(image_path, 'base')):
-                LOG.info('Found the docker image folder at %s', image_path)
+                LOG.info('Found the Docker image directory at %s', image_path)
                 return image_path
         else:
             raise exception.KollaDirNotFoundException('Image dir can not be found')

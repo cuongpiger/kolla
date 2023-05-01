@@ -1,54 +1,34 @@
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 import itertools
 import os
-
 from oslo_config import cfg
 from oslo_config import types
 from oslo_config.cfg import ConfigOpts
-
 from kolla.common.sources import SOURCES
 from kolla.common.users import USERS
 from kolla.version import version_info as version
-from typing import Union, List, Tuple, Optional
+from typing import Union, List, Tuple, Optional, Dict
 
-BASE_OS_DISTRO = ['centos', 'debian', 'rocky', 'ubuntu']
-BASE_ARCH = ['x86_64', 'aarch64']
-DEFAULT_BASE_TAGS = {
+BASE_OS_DISTRO: List[str] = ['centos', 'debian', 'rocky', 'ubuntu']
+BASE_ARCH: List[str] = ['x86_64', 'aarch64']
+DEFAULT_BASE_TAGS: Dict[str, Dict[str, str]] = {
     'centos': {'name': 'quay.io/centos/centos', 'tag': 'stream9'},
     'debian': {'name': 'debian', 'tag': 'bullseye'},
     'rocky': {'name': 'quay.io/rockylinux/rockylinux', 'tag': '9'},
     'ubuntu': {'name': 'ubuntu', 'tag': '22.04'},
 }
-# NOTE(hrw): has to match PRETTY_NAME in /etc/os-release
-DISTRO_PRETTY_NAME = {
+DISTRO_PRETTY_NAME: Dict[str, str] = {
     'centos': 'CentOS Stream 9',
     'debian': 'Debian GNU/Linux 11 (bullseye)',
     'rocky': 'Rocky Linux 9.* (Blue Onyx)',
     'ubuntu': 'Ubuntu 22.04',
-}
-OPENSTACK_RELEASE = 'zed'
-
-# This is noarch repository so we will use it on all architectures
-DELOREAN_DEPS = ""
-
+}  # must match PRETTY_NAME in /etc/os-release
+OPENSTACK_RELEASE: str = 'zed'
+DELOREAN_DEPS: str = ""  # This is noarch repository, so we will use it on all architectures
 INSTALL_TYPE_CHOICES = ['source']
-
-# TODO(mandre) check for file integrity instead of downloading from an HTTPS
-# source
 TARBALLS_BASE = "https://tarballs.opendev.org"
 
-_PROFILE_OPTS = [
+# _PROFILE_OPTS is the `profiles` section in /etc/kolla/kolla-build.conf
+_PROFILE_OPTS: List[cfg.Opt] = [
     cfg.ListOpt('infra',
                 default=[
                     'cron',
@@ -139,56 +119,76 @@ _PROFILE_OPTS = [
                 help='Default images'),
 ]
 
-hostarch = os.uname()[4]
-
 # _CLI_OPTS defines the flags that you can set when calling `kolla` command.
-_CLI_OPTS = [
-    cfg.StrOpt('base', short='b', default='rocky',
+_CLI_OPTS: List[cfg.Opt] = [
+    cfg.StrOpt('base',
+               short='b',
+               default='rocky',
                choices=BASE_OS_DISTRO,
                help='The distro type of the base image.'),
-    cfg.StrOpt('base-tag', default='latest',
+    cfg.StrOpt('base-tag',
+               default='latest',
                help='The base distro image tag'),
     cfg.StrOpt('base-image',
                help='The base image name. Default is the same with base.'),
-    cfg.StrOpt('base-arch', default=hostarch,
+    cfg.StrOpt('base-arch',
+               default=os.uname()[4],  # the machine type, such as 'x86_64' for a 64-bit Intel processor.
                choices=BASE_ARCH,
                help='The base architecture. Default is same as host.'),
-    cfg.BoolOpt('use-dumb-init', default=True,
+    cfg.BoolOpt('use-dumb-init',
+                default=True,
                 help='Use dumb-init as init system in containers'),
-    cfg.BoolOpt('debug', short='d', default=False,
+    cfg.BoolOpt('debug',
+                short='d',
+                default=False,
                 help='Turn on debugging log level'),
-    cfg.BoolOpt('skip-parents', default=False,
+    cfg.BoolOpt('skip-parents',
+                default=False,
                 help='Do not rebuild parents of matched images'),
-    cfg.BoolOpt('skip-existing', default=False,
+    cfg.BoolOpt('skip-existing',
+                default=False,
                 help='Do not rebuild images present in the docker cache'),
     cfg.DictOpt('build-args',
                 help='Set docker build time variables'),
-    cfg.BoolOpt('keep', default=False,
+    cfg.BoolOpt('keep',
+                default=False,
                 help='Keep failed intermediate containers'),
-    cfg.BoolOpt('list-dependencies', short='l',
+    cfg.BoolOpt('list-dependencies',
+                short='l',
                 help='Show image dependencies (filtering supported)'),
     cfg.BoolOpt('list-images',
                 help='Show all available images (filtering supported)'),
-    cfg.StrOpt('namespace', short='n', default='manhcuong8499',
+    cfg.StrOpt('namespace',
+               short='n',
+               default='manhcuong8499',
                help='The Docker namespace name'),
-    cfg.StrOpt('network_mode', default='host',
+    cfg.StrOpt('network_mode',
+               default='host',
                help='The network mode for Docker build. Example: host'),
-    cfg.BoolOpt('cache', default=True,
+    cfg.BoolOpt('cache',
+                default=True,
                 help='Use the Docker cache when building'),
-    cfg.MultiOpt('profile', types.String(), short='p',
+    cfg.MultiOpt('profile', types.String(),
+                 short='p',
                  help=('Build a pre-defined set of images, see [profiles]'
-                       ' section in config. The default profiles are:'
-                       ' {}'.format(', '.join(
-                     [opt.name for opt in _PROFILE_OPTS])
-                 ))),
-    cfg.BoolOpt('push', default=False,
+                       'section in config. The default profiles are:'
+                       '{}'.format(', '.join([opt.name for opt in _PROFILE_OPTS])))),
+    cfg.BoolOpt('push',
+                default=False,
                 help='Push images after building'),
-    cfg.IntOpt('push-threads', default=1, min=1,
+    cfg.IntOpt('push-threads',
+               default=1,
+               min=1,
                help=('The number of threads to use while pushing images.'
-                     ' Note: Docker cannot handle threaded pushing properly')),
-    cfg.IntOpt('retries', short='r', default=3, min=0,
+                     'Note: Docker cannot handle threaded pushing properly')),
+    cfg.IntOpt('retries',
+               short='r',
+               default=3,
+               min=0,
                help='The number of times to retry while building'),
-    cfg.MultiOpt('regex', types.String(), positional=True, required=False,
+    cfg.MultiOpt('regex', types.String(),
+                 positional=True,
+                 required=False,
                  help='Build only images matching regex and its dependencies'),
     cfg.StrOpt('registry',
                help=('The docker registry host. The default registry host'
@@ -196,25 +196,36 @@ _CLI_OPTS = [
     cfg.StrOpt('save-dependency',
                help=('Path to the file to store the docker image'
                      ' dependency in Graphviz dot format')),
-    cfg.StrOpt('format', short='f', default='json',
+    cfg.StrOpt('format',
+               short='f',
+               default='json',
                choices=['json', 'none'],
                help='Format to write the final results in'),
-    cfg.StrOpt('tarballs-base', default=TARBALLS_BASE,
+    cfg.StrOpt('tarballs-base',
+               default=TARBALLS_BASE,
                help='Base url to OpenStack tarballs'),
     # NOTE(hrw): deprecate argument in Zed, remove in A-cycle
-    cfg.StrOpt('type', short='t', default='source',
+    cfg.StrOpt('type',
+               short='t',
+               default='source',
                choices=INSTALL_TYPE_CHOICES,
                dest='install_type',
-               help=('Ignored, kept for script compatibility.')),
-    cfg.IntOpt('threads', short='T', default=8, min=1,
+               help='Ignored, kept for script compatibility.'),
+    cfg.IntOpt('threads',
+               short='T',
+               default=8,
+               min=1,
                help=('The number of threads to use while building.'
                      ' (Note: setting to one will allow real time'
                      ' logging)')),
-    cfg.StrOpt('tag', default=version.cached_version_string(),
+    cfg.StrOpt('tag',
+               default=version.cached_version_string(),
                help='The Docker tag'),
-    cfg.BoolOpt('template-only', default=False,
+    cfg.BoolOpt('template-only',
+                default=False,
                 help="Don't build images. Generate Dockerfile only"),
-    cfg.IntOpt('timeout', default=120,
+    cfg.IntOpt('timeout',
+               default=120,
                help='Time in seconds after which any operation times out'),
     cfg.MultiOpt('template-override', types.String(),
                  help='Path to template override file'),
@@ -222,17 +233,22 @@ _CLI_OPTS = [
                  help=('Path to additional docker file template directory,'
                        ' can be specified multiple times'),
                  short='D'),
-    cfg.StrOpt('logs-dir', help='Path to logs directory'),
-    cfg.BoolOpt('pull', default=True,
+    cfg.StrOpt('logs-dir',
+               help='Path to logs directory'),
+    cfg.BoolOpt('pull',
+                default=True,
                 help='Attempt to pull a newer version of the base image'),
-    cfg.StrOpt('work-dir', help=('Path to be used as working directory.'
-                                 ' By default, a temporary dir is created')),
+    cfg.StrOpt('work-dir',
+               help=('Path to be used as working directory.'
+                     ' By default, a temporary dir is created')),
     # `squash` is used to reduce the size of the final image, set True to turn on
-    cfg.BoolOpt('squash', default=False,
+    cfg.BoolOpt('squash',
+                default=False,
                 help=('Squash the image layers. WARNING: it will consume lots'
-                      ' of disk IO. "docker-squash" tool is required, install'
-                      ' it by "pip install docker-squash"')),
-    cfg.StrOpt('openstack-release', default=OPENSTACK_RELEASE,
+                      'of disk IO. "docker-squash" tool is required, install'
+                      'it by "pip install docker-squash"')),
+    cfg.StrOpt('openstack-release',
+               default=OPENSTACK_RELEASE,
                help='OpenStack release for building kolla source images and '
                     'kolla-toolbox image'),
     cfg.StrOpt('openstack-branch',
@@ -241,45 +257,61 @@ _CLI_OPTS = [
     cfg.StrOpt('openstack-branch-slashed',
                help='Branch for source images (internal; with a slash; '
                     'please set openstack-release instead)'),
-    cfg.BoolOpt('docker-healthchecks', default=True,
+    cfg.BoolOpt('docker-healthchecks',
+                default=True,
                 help='Add Kolla docker healthcheck scripts in the image'),
-    cfg.BoolOpt('quiet', short='q', default=False,
+    cfg.BoolOpt('quiet',
+                short='q',
+                default=False,
                 help='Do not print image logs'),
-    cfg.BoolOpt('enable-unbuildable', default=False,
+    cfg.BoolOpt('enable-unbuildable',
+                default=False,
                 help='Enable images marked as unbuildable'),
-    cfg.BoolOpt('summary', default=True,
+    cfg.BoolOpt('summary',
+                default=True,
                 help='Show summary at the end of build'),
-    cfg.StrOpt('image-name-prefix', default='',
+    cfg.StrOpt('image-name-prefix',
+               default='',
                help='Prefix prepended to image names'),
-    cfg.StrOpt('repos-yaml', default='',
+    cfg.StrOpt('repos-yaml',
+               default='',
                help='Path to alternative repos.yaml file'),
 ]
 
-_BASE_OPTS = [
+# _BASE_OPTS is the configuration options that is specified in the [DEFAULT] section of the /etc/kolla/kolla-build.conf file.
+_BASE_OPTS: List[cfg.Opt] = [
     cfg.StrOpt('maintainer',
                default='Cuong. Duong Manh - cuongdm3@vng.com.vn',
                help='Content of the maintainer label'),
-    cfg.StrOpt('distro_package_manager', default=None,
+    cfg.StrOpt('distro_package_manager',
+               default=None,
                help=('Use this parameter to override the default package '
                      'manager used by kolla. For example, if you want to use '
                      'yum on a system with dnf, set this to yum which will '
                      'use yum command in the build process')),
-    cfg.StrOpt('base_package_type', default=None,
+    cfg.StrOpt('base_package_type',
+               default=None,
                help=('Set the package type of the distro. If not set then '
                      'the packaging type is set to "rpm" if a RHEL based '
                      'distro and "deb" if a Debian based distro.')),
-    cfg.ListOpt('rpm_setup_config', default=[DELOREAN_DEPS],
+    cfg.ListOpt('rpm_setup_config',
+                default=[DELOREAN_DEPS],
                 help=('Comma separated list of .rpm or .repo file(s) '
                       'or URL(s) to install before building containers')),
-    cfg.StrOpt('apt_sources_list', help=('Path to custom sources.list')),
-    cfg.StrOpt('apt_preferences', help=('Path to custom apt/preferences')),
-    cfg.BoolOpt('squash-cleanup', default=True,
+    cfg.StrOpt('apt_sources_list',
+               help='Path to custom sources.list'),
+    cfg.StrOpt('apt_preferences',
+               help='Path to custom apt/preferences'),
+    cfg.BoolOpt('squash-cleanup',
+                default=True,
                 help='Remove source image from Docker after squashing'),
     cfg.StrOpt('squash-tmp-dir',
                help='Temporary directory to be used during squashing'),
-    cfg.BoolOpt('clean_package_cache', default=True,
+    cfg.BoolOpt('clean_package_cache',
+                default=True,
                 help='Clean all package cache.'),
-    cfg.ListOpt('allowed-to-fail', default=[],
+    cfg.ListOpt('allowed-to-fail',
+                default=[],
                 help='Images which are allowed to fail'),
 ]
 
@@ -287,23 +319,27 @@ _BASE_OPTS = [
 def get_source_opts(type_: Optional[str] = None,
                     location: Optional[str] = None,
                     reference: Optional[str] = None,
-                    enabled: bool = True) -> List[Union[cfg.StrOpt, cfg.BoolOpt]]:
+                    enabled: bool = True) -> List[cfg.Opt]:
     """
-    NOTE: do later
+    Resource information to download source code for building images.
     """
-    return [cfg.StrOpt('type', choices=['local', 'git', 'url'],
+    return [cfg.StrOpt('type',
+                       choices=['local', 'git', 'url'],
                        default=type_,
                        help='Source location type'),
-            cfg.StrOpt('location', default=location,
+            cfg.StrOpt('location',
+                       default=location,
                        help='The location for source install'),
-            cfg.StrOpt('reference', default=reference,
+            cfg.StrOpt('reference',
+                       default=reference,
                        help=('Git reference to pull, commit sha, tag '
                              'or branch name')),
-            cfg.BoolOpt('enabled', default=enabled,
+            cfg.BoolOpt('enabled',
+                        default=enabled,
                         help='Whether the source is enabled')]
 
 
-def get_user_opts(uid: int, gid: int, group: str) -> List[Union[cfg.StrOpt, cfg.IntOpt]]:
+def get_user_opts(uid: int, gid: int, group: str) -> List[cfg.Opt]:
     return [
         cfg.IntOpt('uid', default=uid, help='The user id'),
         cfg.IntOpt('gid', default=gid, help='The group id'),
@@ -344,8 +380,7 @@ def list_opts():
                             (None, _BASE_OPTS),
                             ('profiles', _PROFILE_OPTS)],
                            gen_all_source_opts(),
-                           gen_all_user_opts(),
-                           )
+                           gen_all_user_opts())
 
 
 def parse(conf: ConfigOpts,
@@ -361,8 +396,8 @@ def parse(conf: ConfigOpts,
     :param args: the command line arguments
     :param usage: a usage string (`prog` will be expanded)
     :param prog: the name of the program (defaults to sys.argv[0] basename, without extension .py)
-    :param default_config_files: the path of file `kolla-build.conf` to read the configuration,
-                                    default is `/etc/kolla/kolla-build.conf`
+    :param default_config_files: the path of file `kolla-build.conf` to read the configuration, default is
+        `/etc/kolla/kolla-build.conf`
     """
 
     conf.register_cli_opts(_CLI_OPTS)
@@ -373,6 +408,7 @@ def parse(conf: ConfigOpts,
     for name, opts in gen_all_user_opts():
         conf.register_opts(opts, name)
 
+    # read the /etc/kolla/kolla-build.conf into `conf` variable
     conf(args=args,
          project='kolla',
          usage=usage,

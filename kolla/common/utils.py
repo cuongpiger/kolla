@@ -14,11 +14,13 @@ import logging
 import os
 import subprocess  # nosec
 import sys
+from typing import Optional
+from oslo_config.cfg import ConfigOpts
 
 _LOGGER_FORMAT = "[%(levelname)5s][%(asctime)s] %(name)s:%(lineno)s ==> %(message)s"
 
 
-def make_a_logger(conf=None, image_name=None):
+def make_a_logger(conf: Optional[ConfigOpts] = None, image_name: Optional[str] = None):
     if image_name:
         log = logging.getLogger(".".join([__name__, image_name]))
     else:
@@ -31,7 +33,7 @@ def make_a_logger(conf=None, image_name=None):
 
     if not log.handlers:
         stream_handler = logging.StreamHandler(sys.stderr)
-        stream_handler.setFormatter(logging.Formatter(logging.BASIC_FORMAT))
+        stream_handler.setFormatter(logging.Formatter(_LOGGER_FORMAT))
         # NOTE(hrw): quiet mode matters only on console
         if conf is not None and conf.quiet:
             stream_handler.setLevel(logging.CRITICAL)
@@ -45,7 +47,7 @@ def make_a_logger(conf=None, image_name=None):
             handler = logging.FileHandler(filename, delay=True)
             # NOTE(hrw): logfile will be INFO or DEBUG
             handler.setLevel(loglevel)
-            handler.setFormatter(logging.Formatter(logging.BASIC_FORMAT))
+            handler.setFormatter(logging.Formatter(_LOGGER_FORMAT))
             log.addHandler(handler)
 
     # NOTE(hrw): needs to be high, handlers have own levels

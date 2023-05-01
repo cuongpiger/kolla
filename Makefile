@@ -1,5 +1,5 @@
 dev-build-keystone-image:
-	@python ./kolla/cmd/build.py --image-name-prefix dev- --threads 1 --base ubuntu --debug True keystone
+	@python ./kolla/cmd/build.py --logs-dir /home/cuongdm --image-name-prefix dev- --threads 1 --base ubuntu --debug True keystone
 
 dev-generate-keystone-image:
 	@python ./kolla/cmd/build.py --save-dependency ./graph/keystone.dot --image-name-prefix dev- --base ubuntu --debug True keystone

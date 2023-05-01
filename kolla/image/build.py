@@ -1,27 +1,13 @@
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 import contextlib
-import json
 import logging
+import json
 import queue
 import shutil
 import sys
 import threading
 import time
 from typing import List
-
 from oslo_config.cfg import ConfigOpts
-
 from kolla.common import config as common_config
 from kolla.common import utils
 from kolla.image.kolla_worker import KollaWorker
@@ -52,7 +38,9 @@ def join_many(threads):
 
 
 class WorkerThread(threading.Thread):
-    """Thread that executes tasks until the queue provides a tombstone."""
+    """
+    Thread that executes tasks until the queue provides a tombstone.
+    """
 
     #: Object to be put on worker queues to get them to die.
     tombstone = object()
@@ -95,13 +83,12 @@ class WorkerThread(threading.Thread):
 
 
 def run_build():
-    """Build container images.
-
-    :return: A 6-tuple containing bad, good, unmatched, skipped,
-    unbuildable and allowed to fail container image status dicts,
-    or None if no images were built.
     """
-    conf = cfg.ConfigOpts()  # init the configuration variable
+    Build OpenStack component container images.
+    """
+
+    # Read and parse the config from CLI, /etc/kolla/kolla-build.conf and defaults
+    conf: cfg.ConfigOpts = cfg.ConfigOpts()  # init the configuration variable
     common_config.parse(conf, sys.argv[1:], prog='kolla-build')
 
     # Check debug mode is turn on
@@ -111,8 +98,7 @@ def run_build():
     # Check if docker-squash is used
     if conf.squash:
         squash_version = utils.get_docker_squash_version()
-        LOG.info('Image squash is enabled and "docker-squash" version is %s',
-                 squash_version)
+        LOG.info('Image squash is enabled and "docker-squash" version is %s', squash_version)
 
     kolla = KollaWorker(conf)
     kolla.setup_working_dir()
@@ -182,10 +168,10 @@ def run_build():
             push_queue.put(WorkerThread.tombstone)
             build_queue.put(WorkerThread.tombstone)
             raise
-    #
-    # if conf.summary:
-    #     results = kolla.summary()
-    #     if conf.format == 'json':
-    #         print(json.dumps(results))
-    # kolla.cleanup()
-    # return kolla.get_image_statuses()
+
+    if conf.summary:
+        results = kolla.summary()
+        if conf.format == 'json':
+            print(json.dumps(results))
+    kolla.cleanup()
+    return kolla.get_image_statuses()
