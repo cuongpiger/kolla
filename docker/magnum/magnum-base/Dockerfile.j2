@@ -15,10 +15,13 @@ ADD magnum-base-archive /magnum-base-source
     '/magnum[osprofiler]'
 ] %}
 
+{% set magnum_extended_requirements = '/magnum/extended_requirements.txt' %}
+
 COPY extend_start.sh /usr/local/bin/kolla_extend_start
 
 RUN ln -s magnum-base-source/* magnum \
     && {{ macros.install_pip(magnum_base_pip_packages | customizable("pip_packages")) }} \
+    && SETUPTOOLS_USE_DISTUTILS=stdlib python3 -m pip --no-cache-dir install -r {{ magnum_extended_requirements }} \
     && mkdir -p /etc/magnum \
     && cp -r /magnum/etc/magnum/* /etc/magnum \
     && mv /etc/magnum/keystone_auth_default_policy.sample /etc/magnum/keystone_auth_default_policy.json \

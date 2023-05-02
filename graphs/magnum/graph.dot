@@ -1,0 +1,12 @@
+// Docker Images Dependency
+digraph {
+rankdir=LR	base
+	"magnum-api"
+	"magnum-base" -> "magnum-api"
+	"magnum-base"
+	"openstack-base" -> "magnum-base"
+	"magnum-conductor"
+	"magnum-base" -> "magnum-conductor"
+	"openstack-base"
+	base -> "openstack-base"
+}
