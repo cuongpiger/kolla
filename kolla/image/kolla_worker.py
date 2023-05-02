@@ -2,20 +2,20 @@ import datetime
 import docker
 import json
 import os
-import queue
 import re
 import shutil
 import sys
 import tempfile
 import time
 import jinja2
-from typing import List, Optional, Set, Dict
+from queue import Queue
+from typing import List, Optional, Set, Dict, Union
 from logging import Logger
 from oslo_config.cfg import ConfigOpts
 from kolla.common import config as common_config
 from kolla.common import utils
 from kolla import exception
-from kolla.common.utils import make_a_logger, make_basic_logger
+from kolla.common.utils import make_a_logger
 from kolla.image.tasks import BuildTask
 from kolla.image.unbuildable import UNBUILDABLE_IMAGES
 from kolla.image.utils import LOG
@@ -30,7 +30,7 @@ PROJECT_ROOT = os.path.abspath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), '../..'))
 
 # LOG = make_a_logger()
-LOG = make_basic_logger(__name__)
+LOG = make_a_logger(__name__)
 
 
 class Image(object):
@@ -640,12 +640,12 @@ class KollaWorker(object):
                 if installation['type'] == 'git':
                     installation['reference'] = self.conf[section]['reference']
                     LOG.info('Using GitHub repo %s at branch %s with enable=%s to build image %s',
-                              installation['source'], installation['reference'], installation['enabled'],
-                              installation['name'])
+                             installation['source'], installation['reference'], installation['enabled'],
+                             installation['name'])
                 else:
                     LOG.info('Using %s at %s with enable=%s to build image %s',
-                              installation['type'], installation['source'], installation['enabled'],
-                              installation['name'])
+                             installation['type'], installation['source'], installation['enabled'],
+                             installation['name'])
             return installation
 
         # self.conf._groups.keys() is the list of all sections by default in file kolla/common/config.py
@@ -671,7 +671,7 @@ class KollaWorker(object):
 
             image: Image = Image(image_name, canonical_name, path,
                                  parent_name=parent_name,
-                                 logger=utils.make_a_logger(self.conf, image_name),
+                                 logger=utils.make_a_logger(f"building_image_{image_name}", self.conf),
                                  docker_client=self.dc)
             if image.name not in self.conf._groups:
                 self.conf.register_opts(common_config.get_source_opts(), image.name)
@@ -760,13 +760,13 @@ class KollaWorker(object):
                     parent.children.append(image)
                     image.parent = parent
 
-    def build_queue(self, push_queue: queue.Queue):
+    def build_queue(self, push_queue: 'Queue[Union[BuildTask, object]]') -> 'Queue[Union[BuildTask, object]]':
         """
         Organizes Queue list.
         Return a list of Queues that have been organized into a hierarchy
         based on dependencies
         """
-        build_queue: queue.Queue[BuildTask] = queue.Queue()
+        build_queue: Queue[Union[BuildTask, object]] = Queue()
 
         for image in self.images:  # type: Image
             if image.status in (Status.UNMATCHED, Status.SKIPPED, Status.UNBUILDABLE):

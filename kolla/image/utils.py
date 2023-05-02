@@ -32,4 +32,4 @@ class Status(Enum):
 STATUS_ERRORS = (Status.CONNECTION_ERROR, Status.PUSH_ERROR,
                  Status.ERROR, Status.PARENT_ERROR)
 
-LOG = utils.make_a_logger()
+LOG = utils.make_a_logger(__name__)

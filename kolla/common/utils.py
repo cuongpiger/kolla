@@ -43,12 +43,11 @@ class _CustomFormatter(logging.Formatter):
         return formatter.format(record)
 
 
-def make_a_logger(conf: Optional[ConfigOpts] = None, image_name: Optional[str] = None):
-    if image_name:
-        log = logging.getLogger(".".join([__name__, image_name]))
-    else:
-        log = logging.getLogger(__name__)
+def make_a_logger(image_name: Optional[str] = None, conf: Optional[ConfigOpts] = None):
+    if not image_name:
+        raise ValueError("image_name is required")
 
+    log = logging.getLogger(image_name)
     if conf is not None and conf.debug:
         loglevel = logging.DEBUG
     else:
@@ -70,7 +69,7 @@ def make_a_logger(conf: Optional[ConfigOpts] = None, image_name: Optional[str] =
             handler = logging.FileHandler(filename, delay=True)
             # NOTE(hrw): logfile will be INFO or DEBUG
             handler.setLevel(loglevel)
-            handler.setFormatter(logging.Formatter(_LOGGER_FORMAT))
+            handler.setFormatter(_CustomFormatter())
             log.addHandler(handler)
 
     # NOTE(hrw): needs to be high, handlers have own levels
@@ -78,26 +77,12 @@ def make_a_logger(conf: Optional[ConfigOpts] = None, image_name: Optional[str] =
     return log
 
 
-def make_basic_logger(path: str):
-    if not path:
-        raise ValueError('Path is empty')
-
-    logger = logging.getLogger(path)
-    c_handler = logging.StreamHandler()
-    c_handler.setFormatter(_CustomFormatter())
-    logger.addHandler(c_handler)
-    logger.setLevel(logging.DEBUG)
-
-    return logger
+LOG = make_a_logger(__name__)
 
 
-LOG = make_a_logger()
-
-
-def get_docker_squash_version():
+def get_docker_squash_version() -> str:
     try:
-        stdout = subprocess.check_output(  # nosec
-            ['docker-squash', '--version'], stderr=subprocess.STDOUT)
+        stdout = subprocess.check_output(['docker-squash', '--version'], stderr=subprocess.STDOUT)
         return str(stdout.split()[0], 'utf-8')
     except OSError as ex:
         if ex.errno == 2:

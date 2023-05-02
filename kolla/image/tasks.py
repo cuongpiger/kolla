@@ -11,21 +11,26 @@
 # limitations under the License.
 
 import datetime
+from typing import Union
+
 import docker
 import errno
 import os
 import shutil
 import tarfile
-
 import git
 import requests
+import kolla.image.kolla_worker
 from oslo_config.cfg import ConfigOpts
 from requests import exceptions as requests_exc
-
+from queue import Queue
 from kolla.common import task  # noqa
 from kolla.common import utils  # noqa
+from kolla.common.utils import make_a_logger
 from kolla.image.utils import Status
 from kolla.image.utils import STATUS_ERRORS
+
+LOG = make_a_logger(__name__)
 
 
 class ArchivingError(Exception):
@@ -33,7 +38,6 @@ class ArchivingError(Exception):
 
 
 class DockerTask(task.Task):
-
     docker_kwargs = docker.utils.kwargs_from_env()
 
     def __init__(self):
@@ -127,8 +131,8 @@ class BuildTask(DockerTask):
     def __init__(self, conf: ConfigOpts, image, push_queue):
         super(BuildTask, self).__init__()
         self.conf: ConfigOpts = conf
-        self.image = image
-        self.push_queue = push_queue
+        self.image = image  # type: kolla.image.kolla_worker.Image
+        self.push_queue: 'Queue[Union[BuildTask, object]]' = push_queue
         self.forcerm = not conf.keep
         self.logger = image.logger
 
@@ -260,7 +264,7 @@ class BuildTask(DockerTask):
             return None
         return buildargs
 
-    def builder(self, image):
+    def builder(self, image: 'kolla.image.kolla_worker.Image'):
 
         def _test_malicious_tarball(archive, path):
             tar_file = tarfile.open(archive, 'r|*')
@@ -291,12 +295,9 @@ class BuildTask(DockerTask):
                     os.mkdir(items_path)
                 except OSError as e:
                     if e.errno == errno.EEXIST:
-                        self.logger.info(
-                            'Directory %s already exist. Skipping.',
-                            items_path)
+                        self.logger.info('Directory %s already exist. Skipping.', items_path)
                     else:
-                        self.logger.error('Failed to create directory %s: %s',
-                                          items_path, e)
+                        self.logger.error('Failed to create directory %s: %s', items_path, e)
                         image.status = Status.CONNECTION_ERROR
                         raise ArchivingError
             arc_path = os.path.join(image.path, '%s-archive' % arcname)
@@ -342,23 +343,17 @@ class BuildTask(DockerTask):
         try:
             plugins_am = make_an_archive(image.plugins, 'plugins')
         except ArchivingError:
-            self.logger.error(
-                "Failed turning any plugins into a plugins archive")
+            self.logger.error("Failed turning any plugins into a plugins archive")
             return
         else:
-            self.logger.debug(
-                "Turned %s plugins into plugins archive",
-                plugins_am)
+            self.logger.debug("Turned %s plugins into plugins archive", plugins_am)
         try:
             additions_am = make_an_archive(image.additions, 'additions')
         except ArchivingError:
-            self.logger.error(
-                "Failed turning any additions into a additions archive")
+            self.logger.error("Failed turning any additions into a additions archive")
             return
         else:
-            self.logger.debug(
-                "Turned %s additions into additions archive",
-                additions_am)
+            self.logger.debug("Turned %s additions into additions archive", additions_am)
 
         # Pull the latest image for the base distro only
         pull = self.conf.pull if image.parent is None else False
