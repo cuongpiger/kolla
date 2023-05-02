@@ -56,10 +56,10 @@ class DockerTask(task.Task):
 class PushIntoQueueTask(task.Task):
     """Task that pushes some other task into a queue."""
 
-    def __init__(self, push_task, push_queue):
+    def __init__(self, push_task: 'PushTask', push_queue: Queue):
         super(PushIntoQueueTask, self).__init__()
-        self.push_task = push_task
-        self.push_queue = push_queue
+        self.push_task: 'PushTask' = push_task
+        self.push_queue: Queue = push_queue
 
     @property
     def name(self):
@@ -78,10 +78,10 @@ class PushError(Exception):
 class PushTask(DockerTask):
     """Task that pushes an image to a docker repository."""
 
-    def __init__(self, conf, image):
+    def __init__(self, conf: ConfigOpts, image: 'kolla.image.kolla_worker.Image'):
         super(PushTask, self).__init__()
-        self.conf = conf
-        self.image = image
+        self.conf: ConfigOpts = conf
+        self.image: 'kolla.image.kolla_worker.Image' = image
         self.logger = image.logger
 
     @property
@@ -147,19 +147,14 @@ class BuildTask(DockerTask):
 
     @property
     def followups(self):
+        # this method only works in the case of specifying the push option in the CLI
         followups = []
         if self.conf.push and self.success:
-            followups.extend([
-                # If we are supposed to push the image into a docker
-                # repository, then make sure we do that...
-                PushIntoQueueTask(
-                    PushTask(self.conf, self.image),
-                    self.push_queue),
-            ])
+            # If we are supposed to push the image into a DockerHub, then make sure we do that...
+            followups.extend([PushIntoQueueTask(PushTask(self.conf, self.image), self.push_queue)])
         if self.image.children and self.success:
             for image in self.image.children:
-                if image.status in (Status.UNMATCHED, Status.SKIPPED,
-                                    Status.UNBUILDABLE):
+                if image.status in (Status.UNMATCHED, Status.SKIPPED, Status.UNBUILDABLE):
                     continue
                 followups.append(BuildTask(self.conf, image, self.push_queue))
         return followups

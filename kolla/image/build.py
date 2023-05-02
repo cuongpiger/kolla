@@ -78,8 +78,7 @@ class WorkerThread(threading.Thread):
                     task.reset()
                 if task.success and not self.should_stop:
                     for next_task in task.followups:
-                        LOG.info('Added next task %s to queue',
-                                 next_task.name)
+                        LOG.info('Added next task %s to queue', next_task.name)
                         self.queue.put(next_task)
             finally:
                 self.queue.task_done()
@@ -97,6 +96,9 @@ def run_build():
     # Check debug mode is turn on
     if conf.debug:
         LOG.setLevel(logging.DEBUG)
+
+    if conf.push:
+        LOG.info('Images will be pushed after successful build')
 
     # Check if docker-squash is used
     if conf.squash:
@@ -149,6 +151,7 @@ def run_build():
 
     with join_many(workers):
         try:
+            # building the images from Dockerfile
             for x in range(conf.threads):
                 worker = WorkerThread(conf, build_queue)
                 worker.daemon = True
