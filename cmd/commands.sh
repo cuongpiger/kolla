@@ -3,7 +3,7 @@
 local python_cmd=$(which python)
 local pip_cmd=$(which pip)
 local log_dirs=$HOME/kolla/logs
-local project_name=keystone
+local project_name=glance
 local threads=1
 local image_name_prefix=dev-zed_
 local base=ubuntu

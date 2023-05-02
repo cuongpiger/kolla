@@ -32,6 +32,8 @@ ADD glance-base-archive /glance-base-source
     'glance_store[cinder,vmware,swift,s3]'
 ] %}
 
+{% set glance_extended_requirements = '/glance/extended_requirements.txt' %}
+
 # add missing rootwrap config present in glance_store repo
 COPY etc/glance /etc/glance
 COPY glance_sudoers /etc/sudoers.d/kolla_glance_sudoers
@@ -39,6 +41,7 @@ COPY extend_start.sh /usr/local/bin/kolla_extend_start
 
 RUN ln -s glance-base-source/* glance \
     && {{ macros.install_pip(glance_base_pip_packages | customizable("pip_packages")) }} \
+    && SETUPTOOLS_USE_DISTUTILS=stdlib python3 -m pip --no-cache-dir install -r {{ glance_extended_requirements }} \
     && mkdir -p /etc/glance \
     && cp -r /glance/etc/* /etc/glance/ \
     && sed -i 's|^exec_dirs.*|exec_dirs=/var/lib/kolla/venv/bin,/sbin,/usr/sbin,/bin,/usr/bin,/usr/local/bin,/usr/local/sbin|g' /etc/glance/rootwrap.conf \

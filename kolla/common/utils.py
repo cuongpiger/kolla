@@ -87,7 +87,7 @@ def get_docker_squash_version() -> str:
     except OSError as ex:
         if ex.errno == 2:
             LOG.error(('"docker-squash" command is not found.'
-                       ' try to install it by "pip install docker-squash"'))
+                       ' try to install it by "pip install doc`ker-squash"'))
         raise
 
 
