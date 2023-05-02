@@ -8,7 +8,7 @@ local threads=1
 local image_name_prefix=dev-
 local base=ubuntu
 local debug=True
-local work_dir=$HOME/kolla/docker
+local work_dir=$HOME/kolla
 local save_dependency=$HOME/kolla/graphs/$project_name/graph.dot
 
 if [ ! -d $log_dirs/$project_name ]; then
