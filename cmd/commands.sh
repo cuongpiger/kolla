@@ -10,7 +10,7 @@ local base=ubuntu
 local debug=True
 local work_dir=$HOME/kolla
 local save_dependency=$HOME/kolla/graphs/$project_name/graph.dot
-local tag="v1.0.0"
+local tag="latest"
 
 if [ ! -d $log_dirs/$project_name ]; then
   mkdir -p $log_dirs/$project_name
