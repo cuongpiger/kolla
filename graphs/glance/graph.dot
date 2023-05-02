@@ -1,0 +1,10 @@
+// Docker Images Dependency
+digraph {
+rankdir=LR	base
+	"glance-base"
+	"openstack-base" -> "glance-base"
+	"glance-api"
+	"glance-base" -> "glance-api"
+	"openstack-base"
+	base -> "openstack-base"
+}
