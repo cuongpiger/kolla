@@ -3,7 +3,7 @@
 local python_cmd=$(which python)
 local pip_cmd=$(which pip)
 local log_dirs=$HOME/kolla/logs
-local project_name=magnum
+local project_name=heat
 local threads=1
 local image_name_prefix=dev-zed_
 local base=ubuntu
@@ -31,6 +31,7 @@ function dev_run_then_push() {
   $python_cmd ./kolla/cmd/build.py \
     --work-dir $work_dir \
     --push \
+    --skip-existing \
     --tag $tag \
     --logs-dir $log_proj \
     --image-name-prefix $image_name_prefix \

@@ -21,10 +21,13 @@ ADD heat-base-archive /heat-base-source
     '/heat'
 ] %}
 
+{% set heat_extended_requirements = '/heat/extended_requirements.txt' %}
+
 COPY extend_start.sh /usr/local/bin/kolla_extend_start
 
 RUN ln -s heat-base-source/* heat \
     && {{ macros.install_pip(heat_base_pip_packages | customizable("pip_packages")) }} \
+    && SETUPTOOLS_USE_DISTUTILS=stdlib python3 -m pip --no-cache-dir install -r {{ heat_extended_requirements }} \
     && mkdir -p /etc/heat \
     && cp -r /heat/etc/heat/* /etc/heat/ \
     && touch /usr/local/bin/kolla_heat_extend_start \

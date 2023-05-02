@@ -1,0 +1,14 @@
+// Docker Images Dependency
+digraph {
+rankdir=LR	base
+	"openstack-base"
+	base -> "openstack-base"
+	"heat-api"
+	"heat-base" -> "heat-api"
+	"heat-api-cfn"
+	"heat-base" -> "heat-api-cfn"
+	"heat-engine"
+	"heat-base" -> "heat-engine"
+	"heat-base"
+	"openstack-base" -> "heat-base"
+}
