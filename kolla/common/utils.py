@@ -17,7 +17,30 @@ import sys
 from typing import Optional
 from oslo_config.cfg import ConfigOpts
 
-_LOGGER_FORMAT = "[%(levelname)5s][%(asctime)s] %(name)s:%(lineno)s ==> %(message)s"
+_LOGGER_FORMAT = "[%(levelname)5s][%(asctime)s] %(name)s.%(funcName)s:%(lineno)s --- %(message)s"
+
+
+class _CustomFormatter(logging.Formatter):
+    _debug_clr = "\033[32m"
+    _info_clr = "\033[34m"
+    _yellow = "\x1b[33;20m"
+    _red = "\x1b[31;20m"
+    _bold_red = "\x1b[31;1m"
+    _reset = "\x1b[0m"
+    _format = _LOGGER_FORMAT
+
+    FORMATS = {
+        logging.DEBUG: _debug_clr + _format + _reset,
+        logging.INFO: _info_clr + _format + _reset,
+        logging.WARNING: _yellow + _format + _reset,
+        logging.ERROR: _red + _format + _reset,
+        logging.CRITICAL: _bold_red + _format + _reset
+    }
+
+    def format(self, record):
+        log_fmt = self.FORMATS.get(record.levelno)
+        formatter = logging.Formatter(log_fmt)
+        return formatter.format(record)
 
 
 def make_a_logger(conf: Optional[ConfigOpts] = None, image_name: Optional[str] = None):
@@ -33,7 +56,7 @@ def make_a_logger(conf: Optional[ConfigOpts] = None, image_name: Optional[str] =
 
     if not log.handlers:
         stream_handler = logging.StreamHandler(sys.stderr)
-        stream_handler.setFormatter(logging.Formatter(_LOGGER_FORMAT))
+        stream_handler.setFormatter(_CustomFormatter())
         # NOTE(hrw): quiet mode matters only on console
         if conf is not None and conf.quiet:
             stream_handler.setLevel(logging.CRITICAL)
@@ -61,7 +84,7 @@ def make_basic_logger(path: str):
 
     logger = logging.getLogger(path)
     c_handler = logging.StreamHandler()
-    c_handler.setFormatter(logging.Formatter(_LOGGER_FORMAT))
+    c_handler.setFormatter(_CustomFormatter())
     logger.addHandler(c_handler)
     logger.setLevel(logging.DEBUG)
 

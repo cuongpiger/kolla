@@ -244,7 +244,6 @@ class KollaWorker(object):
         """
         Creates a working directory for use while building.
         """
-
         # if working dir is specified, use it
         if self.conf.work_dir:
             self.working_dir = os.path.join(self.conf.work_dir, 'docker')
@@ -258,7 +257,7 @@ class KollaWorker(object):
             for dir in self.conf.docker_dir:
                 self.copy_dir(dir, self.working_dir)
         self.copy_apt_files()
-        LOG.debug('Created working dir: %s', self.working_dir)
+        LOG.info('Created working dir at %s', self.working_dir)
 
     def set_time(self):
         for root, dirs, files in os.walk(self.working_dir):
@@ -354,13 +353,12 @@ class KollaWorker(object):
                 env.filters.update(self._get_filters())
                 env.globals.update(self._get_methods())
                 template = env.get_template(template_name)
+
             content = template.render(values, env=os.environ)
             content_path = os.path.join(path, 'Dockerfile')
             with open(content_path, 'w') as f:
-                LOG.debug("Rendered %s into:", tpl_path)
-                LOG.debug(f"The Dockerfile content:\n{content}")
                 f.write(content)
-                LOG.debug("Wrote it to %s", content_path)
+                LOG.info("Rendered Dockerfile %s into %s", tpl_path, content_path)
 
     def _merge_overrides(self, overrides):
         tpl_name = os.path.basename(overrides[0])
@@ -385,9 +383,11 @@ class KollaWorker(object):
         for root, dirs, names in os.walk(path):
             if filename in names:
                 self.docker_build_paths.append(root)
-                LOG.debug('Found %s', root.split(self.working_dir)[1])
 
-        LOG.debug('Found %d Dockerfiles', len(self.docker_build_paths))
+        LOG.info('Found %d Dockerfiles at %s, includes of:\n\t%s',
+                 len(self.docker_build_paths),
+                 self.working_dir,
+                 "\n\t".join([root.split(self.working_dir)[1] for root in self.docker_build_paths]))
 
     def cleanup(self):
         """Remove temp files."""
@@ -492,7 +492,7 @@ class KollaWorker(object):
 
         # Finally, mark any images that are not matched.
         built_images = '\n\t'.join([image.name for image in self.images if image.status == Status.MATCHED])
-        LOG.debug(f"We will build these images: {built_images}")
+        LOG.info(f"These images are going to be building:\n\t{built_images}")
 
     def summary(self):
         """Walk the dictionary of images statuses and print results."""
@@ -639,13 +639,13 @@ class KollaWorker(object):
                 installation['enabled']: bool = self.conf[section]['enabled']
                 if installation['type'] == 'git':
                     installation['reference'] = self.conf[section]['reference']
-                    LOG.debug('Using Git %s at branch %s as the image resources for image %s with enable=%s',
-                              installation['source'], installation['reference'], installation['name'],
-                              installation['enabled'])
+                    LOG.info('Using GitHub repo %s at branch %s with enable=%s to build image %s',
+                              installation['source'], installation['reference'], installation['enabled'],
+                              installation['name'])
                 else:
-                    LOG.debug('Using %s at %s as the image resources for image %s with enable=%s',
-                              installation['type'], installation['source'], installation['name'],
-                              installation['enabled'])
+                    LOG.info('Using %s at %s with enable=%s to build image %s',
+                              installation['type'], installation['source'], installation['enabled'],
+                              installation['name'])
             return installation
 
         # self.conf._groups.keys() is the list of all sections by default in file kolla/common/config.py

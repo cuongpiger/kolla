@@ -191,8 +191,7 @@ _CLI_OPTS: List[cfg.Opt] = [
                  required=False,
                  help='Build only images matching regex and its dependencies'),
     cfg.StrOpt('registry',
-               help=('The docker registry host. The default registry host'
-                     ' is Docker Hub')),
+               help=('The docker registry host. The default registry host is Docker Hub')),
     cfg.StrOpt('save-dependency',
                help=('Path to the file to store the docker image'
                      ' dependency in Graphviz dot format')),
