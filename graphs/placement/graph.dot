@@ -1,0 +1,10 @@
+// Docker Images Dependency
+digraph {
+rankdir=LR	"placement-base"
+	"openstack-base" -> "placement-base"
+	"placement-api"
+	"placement-base" -> "placement-api"
+	base
+	"openstack-base"
+	base -> "openstack-base"
+}
