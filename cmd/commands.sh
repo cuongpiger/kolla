@@ -3,7 +3,7 @@
 local python_cmd=$(which python)
 local pip_cmd=$(which pip)
 local log_dirs=$HOME/kolla/logs
-local project_name=nova
+local project_name=neutron
 local threads=1
 local image_name_prefix=dev-zed_
 local base=ubuntu
