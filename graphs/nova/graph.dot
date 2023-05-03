@@ -1,0 +1,28 @@
+// Docker Images Dependency
+digraph {
+rankdir=LR	"nova-serialproxy"
+	"nova-base" -> "nova-serialproxy"
+	"nova-libvirt"
+	base -> "nova-libvirt"
+	"nova-compute-ironic"
+	"nova-base" -> "nova-compute-ironic"
+	"nova-base"
+	"openstack-base" -> "nova-base"
+	"nova-novncproxy"
+	"nova-base" -> "nova-novncproxy"
+	"nova-scheduler"
+	"nova-base" -> "nova-scheduler"
+	"nova-compute"
+	"nova-base" -> "nova-compute"
+	"nova-conductor"
+	"nova-base" -> "nova-conductor"
+	"nova-api"
+	"nova-base" -> "nova-api"
+	"nova-ssh"
+	"nova-base" -> "nova-ssh"
+	"nova-spicehtml5proxy"
+	"nova-base" -> "nova-spicehtml5proxy"
+	base
+	"openstack-base"
+	base -> "openstack-base"
+}

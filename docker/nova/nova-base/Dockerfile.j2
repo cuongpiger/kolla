@@ -63,11 +63,14 @@ ADD plugins-archive /
     '/plugins/*'
 ] %}
 
+{% set nova_extended_requirements = '/nova/extended_requirements.txt' %}
+
 COPY nova_sudoers /etc/sudoers.d/kolla_nova_sudoers
 COPY extend_start.sh /usr/local/bin/kolla_extend_start
 
 RUN ln -s nova-base-source/* nova \
     && {{ macros.install_pip(nova_base_pip_packages | customizable("pip_packages")) }} \
+    && SETUPTOOLS_USE_DISTUTILS=stdlib python3 -m pip --no-cache-dir install -r {{ nova_extended_requirements }} \
     && mkdir -p /etc/nova/ \
     && cp -r /nova/etc/nova/* /etc/nova/ \
     && sed -i 's|^exec_dirs.*|exec_dirs=/var/lib/kolla/venv/bin,/sbin,/usr/sbin,/bin,/usr/bin,/usr/local/bin,/usr/local/sbin|g' /etc/nova/rootwrap.conf \

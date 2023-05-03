@@ -3,14 +3,14 @@
 local python_cmd=$(which python)
 local pip_cmd=$(which pip)
 local log_dirs=$HOME/kolla/logs
-local project_name=heat
+local project_name=nova
 local threads=1
 local image_name_prefix=dev-zed_
 local base=ubuntu
 local debug=True
 local work_dir=$HOME/kolla
 local save_dependency=$HOME/kolla/graphs/$project_name/graph.dot
-local tag="latest"
+local tag="v1.0.0"
 
 if [ ! -d $log_dirs/$project_name ]; then
   mkdir -p $log_dirs/$project_name
@@ -61,6 +61,7 @@ function dev_run() {
   $python_cmd ./kolla/cmd/build.py \
     --work-dir $work_dir \
     --tag $tag \
+    --skip-existing \
     --logs-dir $log_proj \
     --image-name-prefix $image_name_prefix \
     --threads $threads \
