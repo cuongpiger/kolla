@@ -1,14 +1,21 @@
 FROM {{ namespace }}/{{ image_prefix }}sahara-base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block sahara_api_header %}{% endblock %}
 
 {% import "macros.j2" as macros with context %}
 
+{% if install_type == 'binary' %}
+    {% if base_package_type == 'rpm' %}
+       {% set sahara_api_packages = ['openstack-sahara-api'] %}
+    {% elif base_package_type == 'deb' %}
+        {% set sahara_api_packages = ['sahara-api'] %}
+    {% endif %}
+{{ macros.install_packages(sahara_api_packages | customizable("packages")) }}
+{% endif %}
+
 COPY extend_start.sh /usr/local/bin/kolla_sahara_extend_start
-RUN chmod 644 /usr/local/bin/kolla_sahara_extend_start
+RUN chmod 755 /usr/local/bin/kolla_sahara_extend_start
 
 {% block sahara_api_footer %}{% endblock %}
 {% block footer %}{% endblock %}

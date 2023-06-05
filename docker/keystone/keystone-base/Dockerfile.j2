@@ -1,7 +1,5 @@
 FROM {{ namespace }}/{{ image_prefix }}openstack-base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block keystone_base_header %}{% endblock %}
 
@@ -9,30 +7,97 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
 
 {{ macros.configure_user(name='keystone') }}
 
-{% if base_package_type == 'rpm' %}
-    {% set keystone_base_packages = [
-        'cyrus-sasl-devel',
-        'mod_auth_mellon',
-        'mod_auth_openidc',
-        'openldap-devel',
-    ] %}
+{% if install_type == 'binary' %}
+    {% if base_package_type == 'rpm' %}
+        {% set keystone_base_packages = [
+            'httpd',
+            'mod_auth_mellon',
+            'mod_auth_openidc',
+            'mod_ssl',
+            'openstack-keystone'
+        ] %}
 
-{% elif base_package_type == 'deb' %}
-    {% set keystone_base_packages = [
-        'libapache2-mod-auth-mellon',
-        'libapache2-mod-auth-openidc',
-        'libldap-common',
-        'libldap2-dev',
-        'libsasl2-dev',
-    ] %}
-{% endif %}
+        {% if distro_python_version.startswith('3') %}
+        {% set keystone_base_packages = keystone_base_packages + [
+            'python3-keystoneclient',
+            'python3-ldappool',
+            'python3-mod_wsgi'
+        ] %}
+        {% else %}
+        {% set keystone_base_packages = keystone_base_packages + [
+            'mod_wsgi',
+            'python-keystoneclient',
+            'python2-ldappool'
+        ] %}
+        {% endif %}
+
 {{ macros.install_packages(keystone_base_packages | customizable("packages")) }}
+RUN mkdir -p /var/www/cgi-bin/keystone \
+    && cp -a /usr/bin/keystone-wsgi-public /var/www/cgi-bin/keystone/main \
+    && cp -a /usr/bin/keystone-wsgi-admin /var/www/cgi-bin/keystone/admin \
+    && sed -i -r 's,^(Listen 80),#\1,' /etc/httpd/conf/httpd.conf \
+    && sed -i -r 's,^(Listen 443),#\1,' /etc/httpd/conf.d/ssl.conf
+
+    {% elif base_package_type == 'deb' %}
+        {% set keystone_base_packages = [
+            'apache2',
+            'keystone',
+            'libapache2-mod-auth-mellon',
+            'libapache2-mod-auth-openidc',
+            'libapache2-mod-wsgi-py3',
+            'python3-ldappool'
+        ] %}
+
+{{ macros.install_packages(keystone_base_packages | customizable("packages")) }}
+RUN mkdir -p /var/www/cgi-bin/keystone \
+    && cp -a /usr/bin/keystone-wsgi-public /var/www/cgi-bin/keystone/main \
+    && cp -a /usr/bin/keystone-wsgi-admin /var/www/cgi-bin/keystone/admin \
+    && echo > /etc/apache2/ports.conf \
+    && rm -f /etc/apache2/sites-enabled/keystone.conf
+
+    {% endif %}
+{% elif install_type == 'source' %}
+    {% if base_package_type == 'rpm' %}
+        {% set keystone_base_packages = [
+            'httpd',
+            'mod_auth_mellon',
+            'mod_auth_openidc',
+            'mod_ssl',
+        ] %}
+        {% if distro_python_version.startswith('3') %}
+        {% set keystone_base_packages = keystone_base_packages + [
+            'python3-ldappool',
+            'python3-mod_wsgi'
+        ] %}
+        {% else %}
+        {% set keystone_base_packages = keystone_base_packages + [
+            'mod_wsgi',
+            'python2-ldappool'
+        ] %}
+        {% endif %}
+
+{{ macros.install_packages(keystone_base_packages | customizable("packages")) }}
+RUN sed -i -r 's,^(Listen 80),#\1,' /etc/httpd/conf/httpd.conf \
+    && sed -i -r 's,^(Listen 443),#\1,' /etc/httpd/conf.d/ssl.conf
+
+    {% elif base_package_type == 'deb' %}
+        {% set keystone_base_packages = [
+            'apache2',
+            'libapache2-mod-auth-mellon',
+            'libapache2-mod-auth-openidc',
+            'libapache2-mod-wsgi',
+            'python-ldappool'
+        ] %}
+{{ macros.install_packages(keystone_base_packages | customizable("packages")) }}
+RUN echo > /etc/apache2/ports.conf
+
+    {% endif %}
 
 {% block keystone_source_install %}
 ADD keystone-base-archive /keystone-base-source
 
 {% set keystone_base_pip_packages = [
-    '/keystone[ldap]',
+    '/keystone'
 ] %}
 
 RUN ln -s keystone-base-source/* keystone \
@@ -40,9 +105,13 @@ RUN ln -s keystone-base-source/* keystone \
     && mkdir -p /etc/keystone /var/www/cgi-bin/keystone \
     && cp -r /keystone/etc/* /etc/keystone/ \
     && cp /var/lib/kolla/venv/bin/keystone-wsgi-admin /var/www/cgi-bin/keystone/admin \
-    && cp /var/lib/kolla/venv/bin/keystone-wsgi-public /var/www/cgi-bin/keystone/main
+    && cp /var/lib/kolla/venv/bin/keystone-wsgi-public /var/www/cgi-bin/keystone/main \
+    && chown -R keystone: /etc/keystone /var/www/cgi-bin/keystone
 {% endblock %}
 
-RUN chmod 755 /var/www/cgi-bin/keystone/*
+{% endif %}
+
+RUN chown -R keystone: /var/www/cgi-bin/keystone \
+    && chmod 755 /var/www/cgi-bin/keystone/*
 
 {% block keystone_base_footer %}{% endblock %}

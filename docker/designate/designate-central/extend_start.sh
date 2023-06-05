@@ -9,5 +9,6 @@ fi
 # of the KOLLA_BOOTSTRAP variable being set, including empty.
 if [[ "${!KOLLA_BOOTSTRAP[@]}" ]]; then
     designate-manage database sync
+    designate-manage pool-manager-cache sync
     exit 0
 fi

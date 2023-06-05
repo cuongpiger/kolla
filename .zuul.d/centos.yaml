@@ -2,32 +2,62 @@
 - project:
     check:
       jobs:
-        - kolla-build-centos9s
-        - kolla-ansible-centos9s
-    check-arm64:
+        - kolla-build-centos-binary
+        - kolla-build-centos-source
+        - kolla-ansible-centos-source
+        - kolla-ansible-centos-binary
+        - kolla-ansible-centos-source-upgrade
+        - tripleo-build-containers-centos-7:
+            # FIXME(yoctozepto): set to voting when TripleO CI is fixed
+            voting: false
+            files:
+              - ^docker/.*$
+              - ^kolla/.*$
+              - ^requirements.txt$
+              - ^setup.cfg$
+              - ^setup.py$
+        - kolla-ansible-bifrost-centos-source:
+            files: ^docker\/bifrost\/.*
+        - kolla-ansible-centos-source-ceph:
+            files: ^docker\/(ceph|cinder)\/.*
+    gate:
+      queue: kolla
       jobs:
-        - kolla-build-centos9s-aarch64
-    experimental:
-      jobs:
-        - kolla-build-no-infra-wheels-centos9s
+        - kolla-build-centos-source
 
 - job:
-    name: kolla-build-centos9s
+    name: kolla-build-centos-binary
     parent: kolla-base
-    nodeset: kolla-centos-9-stream
-    vars:
-      base_distro: centos
+    nodeset: kolla-centos
     voting: false
+    vars:
+      action: build
+      base_distro: centos
+      install_type: binary
 
 - job:
-    name: kolla-build-centos9s-aarch64
-    parent: kolla-build-centos9s
-    nodeset: kolla-centos-9-stream-aarch64
-    voting: false
+    name: kolla-publish-centos-binary
+    parent: kolla-build-centos-binary
+    post-run: tests/playbooks/publish.yml
+    vars:
+      publisher: true
+    secrets:
+      - kolla_dockerhub_creds
 
 - job:
-    name: kolla-build-no-infra-wheels-centos9s
-    parent: kolla-build-no-infra-wheels-base
-    nodeset: kolla-centos-9-stream
+    name: kolla-build-centos-source
+    parent: kolla-base
+    nodeset: kolla-centos
     vars:
+      action: build
       base_distro: centos
+      install_type: source
+
+- job:
+    name: kolla-publish-centos-source
+    parent: kolla-build-centos-source
+    post-run: tests/playbooks/publish.yml
+    vars:
+      publisher: true
+    secrets:
+      - kolla_dockerhub_creds

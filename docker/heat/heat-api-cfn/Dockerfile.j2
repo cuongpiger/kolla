@@ -1,14 +1,20 @@
 FROM {{ namespace }}/{{ image_prefix }}heat-base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block heat_api_cfn_header %}{% endblock %}
 
 {% import "macros.j2" as macros with context %}
 
-COPY extend_start.sh /usr/local/bin/kolla_heat_extend_start
-RUN chmod 644 /usr/local/bin/kolla_heat_extend_start
+{% if install_type == 'binary' %}
+    {% if base_package_type == 'rpm' %}
+        {% set heat_api_cfn_packages = ['openstack-heat-api-cfn'] %}
+    {% elif base_package_type == 'deb' %}
+        {% set heat_api_cfn_packages = ['heat-api-cfn'] %}
+    {% endif %}
+{{ macros.install_packages(heat_api_cfn_packages | customizable("packages")) }}
+{% endif %}
 
 {% block heat_api_cfn_footer %}{% endblock %}
 {% block footer %}{% endblock %}
+
+USER heat

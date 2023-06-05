@@ -1,4 +1,0 @@
----
-upgrade:
-  - |
-    ``haproxy`` packages have been upgraded to 2.2.

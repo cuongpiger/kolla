@@ -1,7 +1,5 @@
 ---
 - hosts: all
-  vars_files:
-    - ../vars/zuul.yml
   tasks:
     - name: Create dir for kolla logs
       file:
@@ -18,135 +16,51 @@
         path: "{{ kolla_build_logs_dir }}"
         state: directory
 
-    # On RAX hosts, we have a small root partition and a large,
-    # unallocated ephemeral device attached at /dev/xvde
-    - name: Set ephemeral device if /dev/xvde exists
-      when: ansible_devices["xvde"] is defined
-      set_fact:
-        ephemeral_device: "/dev/xvde"
+    - block:
 
-    # On other providers, we have a device called "ephemeral0".
-    - name: Set ephemeral device by label
-      when: ephemeral_device is undefined
-      block:
-        - name: Get ephemeral0 device node
-          command: /sbin/blkid -L ephemeral0
-          register: ephemeral0
-          # rc !=0 is expected
-          failed_when: False
-          changed_when: False
+        - name: Ensure yum-utils is installed
+          # NOTE(mgoddard): The CentOS image used in CI has epel-release installed,
+          # but the configure-mirrors role used by Zuul disables epel. Since we
+          # install epel-release and expect epel to be enabled, enable it here.
+          package:
+            name: yum-utils
+            state: present
 
-        - name: Set ephemeral device if LABEL exists
-          when: "ephemeral0.rc == 0"
-          set_fact:
-            ephemeral_device: "{{ ephemeral0.stdout }}"
+        - name: Enable the EPEL repository
+          command: yum-config-manager --enable epel
 
-    - name: Configure additional disk (if available)
       become: true
-      when: ephemeral_device is defined
-      block:
-        - name: Ensure ephemeral device is unmounted
-          ansible.posix.mount:
-            name: "{{ ephemeral_device }}"
-            state: "{{ item }}"
-          loop:
-            - unmounted
-            - absent
+      when:
+        - ansible_os_family == "RedHat"
 
-        - name: Get existing partitions
-          community.general.parted:
-            device: "{{ ephemeral_device }}"
-            unit: MiB
-            state: info
-          register: ephemeral_partitions
-
-        - name: Remove any existing partitions
-          community.general.parted:
-            device: "{{ ephemeral_device }}"
-            number: "{{ item.num }}"
-            state: absent
-          loop: "{{ ephemeral_partitions.partitions }}"
-
-        - name: Create filesystem on additional partition
-          community.general.filesystem:
-            fstype: ext4
-            dev: "{{ ephemeral_device }}"
-            opts: "-L kolla"
-
-        - name: Ensure /var/lib/docker mountpoint is created
-          ansible.builtin.file:
-            path: "/var/lib/docker"
-            owner: root
-            group: root
-            state: directory
-            mode: 0755
-
-        - name: Mount additional filesystem
-          ansible.posix.mount:
-            path: "/var/lib/docker"
-            src: "LABEL=kolla"
-            fstype: ext4
-            state: mounted
-
-    - name: Install Python3 pip and setuptools
+    - name: Install Python2 modules
+      become: true
       package:
         name:
-          - python3-pip
-          - python3-setuptools
-      become: true
+          - python-pip
+          - python-setuptools
+          - python-wheel
+          - python-virtualenv
 
-    # NOTE(hrw): On RedHat systems venv is part of python3-libs
-    - name: Install Python3 venv on Debian systems
+    - name: Install virtualenv on Debian systems
+      # NOTE(hrw): On RedHat systems it is part of python3-virtualenv
       package:
         name:
-          - python3-venv
+          - virtualenv
       become: true
       when:
         ansible_os_family == "Debian"
 
-    - name: Create virtualenv
-      command: python3 -m venv {{ virtualenv_path }}
-
-    - name: Install kolla
-      command: "{{ virtualenv_path }}/bin/python -m pip install {{ zuul.project.src_dir }}"
-
-    - name: Configure Docker repo for Debian/Ubuntu
-      block:
-        - name: Add key for Docker APT repository
-          apt_key:
-            url: "{{ nodepool_docker_proxy }}/{{ ansible_distribution | lower }}/gpg"
-            state: present
-
-        - name: Add Docker APT repository
-          apt_repository:
-            repo: "deb {{ nodepool_docker_proxy }}/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable"
-            state: present
-
-        - name: Ensure AppArmor is installed
-          package:
-            name: apparmor
-            state: present
-
-      when: ansible_os_family == "Debian"
+    - name: Upgrade pip to latest version
+      # NOTE(mnasiadka): pip 8.x delivered with EPEL has problems installing
+      # zipp and configparser
       become: true
+      command: "pip install --upgrade pip"
 
-    - name: Configure Docker repo for CentOS
-      block:
-        - name: Add Docker repository
-          yum_repository:
-            name: docker
-            description: Docker
-            baseurl: "{{ nodepool_docker_proxy }}/centos/9/$basearch/stable"
-            enabled: yes
-            gpgcheck: yes
-            gpgkey: "{{ nodepool_docker_proxy }}/centos/gpg"
-            # module_hotfixes: True  # enabled below (dnf, not yum, feature)
-
-        - name: Enable module_hotfixes in Docker YUM repository
-          lineinfile:
-            path: /etc/yum.repos.d/docker.repo
-            line: 'module_hotfixes=True'
-      when: ansible_os_family == "RedHat"
+    - name: Ensure tox is installed
+      pip:
+        name: tox
+        virtualenv: "{{ ansible_user_dir }}/tox-venv"
       become: true
 
     - name: Ensure /etc/docker exists
@@ -166,22 +80,3 @@
               "http://{{ zuul_site_mirror_fqdn }}:8082/"
             ]
           }
-
-    # NOTE(yoctozepto): We configure Docker before installing it because Debuntu starts services
-    # during installation.
-    - name: Install Docker
-      package:
-        name: docker-ce
-      become: true
-
-    - name: Ensure Docker service is started
-      service:
-        name: docker
-        state: started
-      become: true
-
-    - name: Ensure Docker socket is world-writable
-      file:
-        path: /run/docker.sock
-        mode: 0666
-      become: true

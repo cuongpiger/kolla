@@ -21,35 +21,19 @@ Welcome to Kolla's documentation!
 Kolla's mission is to provide production-ready containers and deployment tools
 for operating OpenStack clouds.
 
-Related Projects
-================
+This documentation is for the Kolla container images. The following subprojects
+are available to help deploy Kolla:
 
-This documentation is for the Kolla container images.
-
-`Kolla-ansible <https://docs.openstack.org/kolla-ansible/latest/>`_ is a
-subproject of Kolla that deploys the Kolla container images using Ansible.
-
-`Kayobe <https://docs.openstack.org/kayobe/latest/>`_ is a subproject of Kolla
-that uses Kolla Ansible and Bifrost to deploy an OpenStack control plane to
-bare metal.
-
-`ansible-collection-kolla
-<https://docs.openstack.org/ansible-collection-kolla/latest/>`_ is a subproject
-of Kolla that provides common Ansible content for use by Kolla projects.
+* `kolla-ansible <https://docs.openstack.org/kolla-ansible/latest/>`_
 
 Site Notes
 ==========
 
 This documentation is continually updated and may not represent the state of
 the project at any specific prior release. To access documentation for a
-previous release of kolla, choose one of the OpenStack release names on
-the right of the title.
-
-Release Notes
-=============
-
-The release notes for the project can be found here:
-https://docs.openstack.org/releasenotes/kolla/
+previous release of kolla, append the OpenStack release name to the URL. For
+example, to access Kolla documentation for pike release:
+https://docs.openstack.org/kolla/pike
 
 Administrator Guide
 ===================
@@ -58,14 +42,6 @@ Administrator Guide
    :maxdepth: 2
 
    admin/index
-
-Support Matrix
-==============
-
-.. toctree::
-   :maxdepth: 2
-
-   support_matrix
 
 Contributor Guide
 =================

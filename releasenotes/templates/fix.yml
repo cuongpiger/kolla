@@ -1,7 +1,0 @@
----
-fixes:
-  - |
-    Fixes [some bug].
-    [Can be described using multiple sentences if necessary.]
-    [Possibly also giving the previous behaviour description.]
-    `LP#[bug number] <https://launchpad.net/bugs/[bug number]>`__

@@ -1,9 +1,0 @@
----
-features:
-  - |
-    Adds HAcluster images. These images contain services supporting High
-    Availability such as Corosync, Pacemaker, Pacemaker Remote and PCS.
-
-    HAcluster will not handle any OpenStack control plane resources, it
-    will be used as third party for OpenStack Masakari for example to handle
-    instance failover following a Nova compute crash.

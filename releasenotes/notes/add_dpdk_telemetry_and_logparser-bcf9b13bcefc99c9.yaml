@@ -1,8 +1,0 @@
----
-
-features:
-  - |
-    Adds ``collectd-dpdk_telemetry`` and ``collectd-logparser`` packages
-    to ``collectd`` RHEL-based image. The ``dpdk_telemetry`` plugin collects
-    DPDK Ethernet device metrics via the ``dpdk_telemetry`` library.
-    ``logparser`` is a plugin for filtering and parsing log messages.

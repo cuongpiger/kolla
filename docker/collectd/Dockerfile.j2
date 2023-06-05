@@ -1,7 +1,5 @@
 FROM {{ namespace }}/{{ image_prefix }}openstack-base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block collectd_header %}{% endblock %}
 
@@ -9,67 +7,97 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
 
 {{ macros.configure_user(name='collectd') }}
 
-{{ macros.enable_extra_repos(['opstools']) }}
-
 {% set collectd_packages = [
     'collectd'
 ] %}
 
 {% if base_package_type == 'rpm' %}
   {% set collectd_packages = collectd_packages + [
-      'collectd-amqp',
-      'collectd-amqp1',
       'collectd-apache',
       'collectd-bind',
       'collectd-ceph',
       'collectd-chrony',
-      'collectd-connectivity',
       'collectd-curl',
       'collectd-curl_json',
       'collectd-curl_xml',
       'collectd-dbi',
       'collectd-disk',
       'collectd-dns',
+      'collectd-generic-jmx',
       'collectd-ipmi',
-      'collectd-logparser',
+      'collectd-log_logstash',
       'collectd-mcelog',
+      'collectd-memcachec',
       'collectd-mysql',
       'collectd-netlink',
       'collectd-openldap',
-      'collectd-ovs-events',
-      'collectd-ovs-stats',
       'collectd-ping',
-      'collectd-procevent',
       'collectd-python',
       'collectd-sensors',
       'collectd-smart',
       'collectd-snmp',
-      'collectd-snmp-agent',
-      'collectd-sysevent',
       'collectd-utils',
       'collectd-virt',
       'collectd-write_http',
       'collectd-write_kafka',
-      'collectd-write_prometheus',
+      'collectd-write_prometheus'
   ] %}
 
+  {% if distro_python_version.startswith('3') %}
+  {# TODO(aschultz): there are some missing packages here #}
+  {% set collectd_packages = collectd_packages + [
+      'collectd-ovs_events',
+      'collectd-ovs_stats',
+      'collectd-snmp_agent',
+  ] %}
+  {% else %}
+  {% set collectd_packages = collectd_packages + [
+      'collectd-amqp1',
+      'collectd-connectivity',
+      'collectd-ovs-events',
+      'collectd-ovs-stats',
+      'collectd-procevent',
+      'collectd-snmp-agent',
+      'collectd-sysevent',
+      'python-collectd-gnocchi',
+      'python2-collectd-rabbitmq-monitoring',
+      'python2-sqlalchemy-collectd'
+  ] %}
+  {% endif %}
+
+  {% if base_arch in ['x86_64', 'ppc64le'] %}
+      {% set collectd_packages = collectd_packages + [
+        'collectd-iptables'
+        ] %}
+  {% endif %}
+
   {% if base_arch =='x86_64' %}
+    {% if distro_python_version.startswith('3') %}
+      {# NOTE(aschultz): there are some missing packages here #}
       {% set collectd_packages = collectd_packages + [
         'collectd-hugepages',
-        'collectd-pcie-errors',
-        'collectd-pmu',
+      ] %}
+    {% else %}
+      {% set collectd_packages = collectd_packages + [
+        'collectd-hugepages',
         'collectd-rdt',
         'collectd-turbostat'
       ] %}
-  {% endif %}
+    {% endif %}
 
+  {% endif %}
+  {% if distro_package_manager == 'yum' %}
+# make sure, collectd is pulled from centos-opstools
+RUN yum-config-manager --disable epel
+  {% endif %}
 {% endif %}
 
 {{ macros.install_packages(collectd_packages | customizable("packages")) }}
 
 COPY extend_start.sh /usr/local/bin/kolla_extend_start
-RUN chmod 644 /usr/local/bin/kolla_extend_start \
+RUN chmod 755 /usr/local/bin/kolla_extend_start \
     && chown -R collectd /var/lib/collectd \
+    && chown -R collectd /etc/collectd* \
     && chown -R collectd /var/run/
 
 {% block collectd_footer %}{% endblock %}

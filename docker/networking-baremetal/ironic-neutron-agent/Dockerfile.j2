@@ -1,11 +1,37 @@
 FROM {{ namespace }}/{{ image_prefix }}neutron-base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block ironic_neutron_agent_header %}{% endblock %}
 
 {% import "macros.j2" as macros with context %}
+
+{% if install_type == 'binary' %}
+
+    {% if base_package_type == 'rpm' %}
+
+        {% if distro_python_version.startswith('3') %}
+        {% set ironic_neutron_agent_packages = [
+            'python3-ironic-neutron-agent',
+            'python3-networking-baremetal'
+        ] %}
+        {% else %}
+        {% set ironic_neutron_agent_packages = [
+            'python-ironic-neutron-agent',
+            'python-networking-baremetal'
+        ] %}
+
+        {% endif %}
+    {% elif base_package_type == 'deb' %}
+
+RUN echo '{{ install_type }} not yet available for {{ base_distro }}' \
+            && /bin/false
+
+    {% endif %}
+
+{{ macros.install_packages(ironic_neutron_agent_packages | customizable("packages")) }}
+
+{% endif %}
+
 
 {% block ironic_neutron_agent_footer %}{% endblock %}
 {% block footer %}{% endblock %}

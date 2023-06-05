@@ -1,133 +1,93 @@
 {% raw %}
 {% extends parent_template %}
 
-{% block base_pip_conf %}
+{% block base_header %}
 {% endraw %}
 
 ENV PIP_INDEX_URL {{ nodepool_pypi_mirror }}
 ENV PIP_TRUSTED_HOST {{ nodepool_mirror_host }}
-{% if use_infra_wheels_mirror | default(true) %}
 ENV PIP_EXTRA_INDEX_URL {{ nodepool_wheel_mirror }}
-{% endif %}
 
 RUN echo registry={{ nodepool_npmjs_proxy }} > /etc/npmrc \
     && mkdir -p /usr/etc \
     && ln -s /etc/npmrc /usr/etc/npmrc
 
 {% raw %}
-{% endblock %}
+{% if base_distro == 'ubuntu' %}
+
+# NOTE(hrw): Debian 'buster' and Ubuntu 18.04 refuse to use unsigned repos
+RUN echo 'APT::Get::AllowUnauthenticated "true";' > /etc/apt/apt.conf.d/99allow-unauthenticated \
+ && echo 'Acquire::AllowInsecureRepositories "true";' > /etc/apt/apt.conf.d/99allow-insecure-repos
+
+{% elif base_distro == 'centos' %}
 {% endraw %}
 
-{% if base_distro in ['centos', 'rocky'] %}
-    {% if base_distro == 'centos' %}
+RUN sed -i -e "/^mirrorlist/d" \
+        -e "s|^#baseurl=http://mirror.centos.org|baseurl=http://{{ nodepool_mirror_host }}|" \
+        -e "s|^#baseurl=https://mirror.centos.org|baseurl=http://{{ nodepool_mirror_host }}|" \
+        -e "s|^baseurl=http://mirror.centos.org|baseurl=http://{{ nodepool_mirror_host }}|" \
+        -e "s|^baseurl=https://mirror.centos.org|baseurl=http://{{ nodepool_mirror_host }}|" \
+        /etc/yum.repos.d/CentOS-Base.repo
 
 {% raw %}
-{% block base_centos_repo_overrides_post_copy %}
+{% elif base_distro == 'oraclelinux' %}
 {% endraw %}
 
-COPY ci-centos.repo /etc/yum.repos.d/
-RUN cd /etc/yum.repos.d/ && mkdir not-for-ci/ && mv centos*.repo not-for-ci/ \
-    && sed -i -e "s/MIRROR/{{ nodepool_mirror_host }}/g" /etc/yum.repos.d/ci-centos.repo
+RUN sed -i -e "s|^baseurl=https://yum$ociregion.oracle.com/repo/OracleLinux|baseurl={{ nodepool_oraclelinux_proxy }}|" \
+        /etc/yum.repos.d/oracle-linux-ol7.repo
 
 {% raw %}
-{% endblock %}
-{% endraw %}
-    {% elif base_distro == 'rocky' %}
-{#
-NOTE(hrw): Rocky is not mirrored but it uses CentOS repos which are
- #}
-{% raw %}
-{% block base_centos_repo_overrides_post_copy %}
-{% endraw %}
-
-COPY ci-rocky.repo /etc/yum.repos.d/
-RUN cd /etc/yum.repos.d/ && mkdir not-for-ci/ \
-    && sed -i -e "s/MIRROR/{{ nodepool_mirror_host }}/g" /etc/yum.repos.d/ci-rocky.repo
-
-{% raw %}
-{% endblock %}
-{% endraw %}
-    {% endif %} {# if centos/rocky #}
-
-{% raw %}
-{% block base_centos_repo_overrides_post_rpm %}
-{% endraw %}
-
-RUN sed -i \
-        -e "s|https://trunk.rdoproject.org|{{ nodepool_rdo_proxy }}|g" \
-        /etc/yum.repos.d/delorean*.repo
-
-{% raw %}
-{% endblock %}
-
-{% block base_centos_repo_overrides_post_yum -%}
-{%- endraw -%}
-    && cd /etc/yum.repos.d/ && mv CentOS*.repo epel*.repo not-for-ci/
-{%- raw -%}
-{% endblock %}
-{% endraw %}
 {% endif %}
+{% endblock %}
+
+{% block base_footer %}
+{% if base_distro == "centos" %}
+{% endraw %}
+
+RUN sed -i -e  "/^mirrorlist/d" \
+        -e "/^metalink/d" \
+        -e "s|^#baseurl=http://download.fedoraproject.org/pub|baseurl=http://{{ nodepool_mirror_host }}|g" \
+        -e "s|^baseurl=http://mirror.centos.org|baseurl=http://{{ nodepool_mirror_host }}|g" \
+        -e "s|^baseurl=https://mirror.centos.org|baseurl=http://{{ nodepool_mirror_host }}|g" \
+        -e "s|^#baseurl=http://mirror.centos.org|baseurl=http://{{ nodepool_mirror_host }}|g" \
+        -e "s|^#baseurl=https://mirror.centos.org|baseurl=http://{{ nodepool_mirror_host }}|g" \
+        -e "s|^baseurl=https://packages.elastic.co|baseurl={{ nodepool_elastic_proxy }}|g" \
+        -e "s|^baseurl=https://packagecloud.io/grafana|baseurl={{ nodepool_grafana_proxy }}|g" \
+        -e "s|^baseurl=https://trunk.rdoproject.org|baseurl=http://{{ nodepool_rdo_proxy }}|g" \
+        -e "s|^baseurl=https://cbs.centos.org/repos|baseurl={{ nodepool_cbs_centos_proxy }}|g" \
+        -e "s|https://repo.percona.com|{{ nodepool_percona_proxy }}|g" \
+        /etc/yum.repos.d/*.repo
 
 {% raw %}
-{% block base_debian_after_sources_list %}
+{% elif base_distro == "oraclelinux" %}
 {% endraw %}
-{% if base_distro == "debian" %}
 
-RUN sed -i -e "s|http://deb.debian.org|[trusted=yes] http://{{ nodepool_mirror_host }}|" \
-        -e "s|http://security.debian.org|[trusted=yes] http://{{ nodepool_mirror_host }}|" \
-        /etc/apt/sources.list
+RUN sed -i -e "/^mirrorlist/d" \
+        -e "/^metalink/d" \
+        -e "s|^#baseurl=http://mirror.centos.org|baseurl=http://{{ nodepool_mirror_host }}|g" \
+        -e "s|^#baseurl=https://mirror.centos.org|baseurl=http://{{ nodepool_mirror_host }}|g" \
+        -e "s|^#baseurl=http://download.fedoraproject.org/pub|baseurl=http://{{ nodepool_mirror_host }}|g" \
+        -e "s|^baseurl=http://mirror.centos.org|baseurl=http://{{ nodepool_mirror_host }}|g" \
+        -e "s|^baseurl=https://mirror.centos.org|baseurl=http://{{ nodepool_mirror_host }}|g" \
+        -e "s|^baseurl=https://packages.elastic.co|baseurl={{ nodepool_elastic_proxy }}|g" \
+        -e "s|^baseurl=https://packagecloud.io/grafana|baseurl={{ nodepool_grafana_proxy }}|g" \
+        -e "s|^baseurl=https://trunk.rdoproject.org|baseurl=http://{{ nodepool_rdo_proxy }}|g" \
+        -e "s|^baseurl=https://cbs.centos.org/repos|baseurl={{ nodepool_cbs_centos_proxy }}|g" \
+        -e "s|https://repo.percona.com|{{ nodepool_percona_proxy }}|g" \
+        /etc/yum.repos.d/*.repo
 
+{% raw %}
 {% elif base_distro == "ubuntu" %}
-
-RUN sed -i -e "s|mirror://mirrors.ubuntu.com/mirrors.txt|[trusted=yes] http://{{ nodepool_mirror_host }}/ubuntu/|" \
-        -e "s|http://ubuntu-cloud.archive.canonical.com/ubuntu|[trusted=yes] http://{{ nodepool_mirror_host }}/ubuntu-cloud-archive|" \
-        -e "s|http://ports.ubuntu.com|[trusted=yes] http://{{ nodepool_mirror_host }}/ubuntu-ports|" \
-        /etc/apt/sources.list
-
-{% endif %}
-{% raw %}
-{% endblock %}
-
-{# Revert to upstream mirrors after build is complete #}
-
-{% block footer %}
 {% endraw %}
 
-ENV PIP_INDEX_URL=
-ENV PIP_TRUSTED_HOST=
-{% if use_infra_wheels_mirror | default(true) %}
-ENV PIP_EXTRA_INDEX_URL=
-{% endif %}
+## TODO(yoctozepto): replace base repo earlier as well (like RHEL-based do)
+RUN sed -i -e "s|http://archive.ubuntu.com|http://{{ nodepool_mirror_host }}|" \
+        -e "s|http://ubuntu-cloud.archive.canonical.com/ubuntu|http://{{ nodepool_mirror_host }}/ubuntu-cloud-archive|" \
+        -e "s|http://repo.percona.com|{{ nodepool_percona_proxy }}|" \
+        /etc/apt/sources.list \
+    && apt-get update
 
-RUN if [ -f /usr/etc/npmrc ]; then \
-        unlink /usr/etc/npmrc; \
-    fi \
-    && rm -f /etc/npmrc
-
-{% if base_distro in ['centos', 'rocky'] %}
-{# NOTE(hrw): Some images have two footer blocks.
-   For example neutron-infobox-ipam-agent being
-   child of neutron-server.
-#}
-RUN if [ -d /etc/yum.repos.d/not-for-ci/ ]; then \
-        cd /etc/yum.repos.d/ && \
-        rm ci-{{ base_distro }}.repo && \
-        mv not-for-ci/*.repo . && \
-        rm -rf not-for-ci; \
-    fi; \
-    sed -i \
-        -e "s|{{ nodepool_rdo_proxy }}|https://trunk.rdoproject.org|g" \
-        /etc/yum.repos.d/delorean*.repo
-{% elif base_distro == "debian" %}
-RUN sed -i -e "s|\[trusted=yes\] http://{{ nodepool_mirror_host }}|http://deb.debian.org|" \
-        -e "s|\[trusted=yes\] http://{{ nodepool_mirror_host }}|http://security.debian.org|" \
-        /etc/apt/sources.list
-{% elif base_distro == "ubuntu" %}
-RUN sed -i -e "s|\[trusted=yes\] http://{{ nodepool_mirror_host }}/ubuntu/|mirror://mirrors.ubuntu.com/mirrors.txt|" \
-        -e "s|\[trusted=yes\] http://{{ nodepool_mirror_host }}/ubuntu-cloud-archive|http://ubuntu-cloud.archive.canonical.com/ubuntu|" \
-        -e "s|\[trusted=yes\] http://{{ nodepool_mirror_host }}/ubuntu-ports|http://ports.ubuntu.com|" \
-        /etc/apt/sources.list
-{% endif %}
 {% raw %}
+{% endif %}
 {% endblock %}
 {% endraw %}

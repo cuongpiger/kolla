@@ -1,5 +1,0 @@
----
-upgrade:
-  - |
-    The ``nova-placement-api`` image was renamed to ``placement-api`` in the
-    Stein release, and has now been removed.

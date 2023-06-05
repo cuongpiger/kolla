@@ -1,11 +1,20 @@
 FROM {{ namespace }}/{{ image_prefix }}mistral-base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block mistral_event_engine_header %}{% endblock %}
 
 {% import "macros.j2" as macros with context %}
+
+{% if install_type == 'binary' %}
+    {% if base_package_type == 'rpm' %}
+        {% set mistral_event_engine_packages = ['openstack-mistral-event-engine'] %}
+{{ macros.install_packages(mistral_event_engine_packages | customizable("packages")) }}
+    {% elif base_package_type == 'deb' %}
+RUN echo '{{ install_type }} not yet available for {{ base_distro }}' \
+    && /bin/false
+    {% endif %}
+
+{% endif %}
 
 {% block mistral_event_engine_footer %}{% endblock %}
 {% block footer %}{% endblock %}

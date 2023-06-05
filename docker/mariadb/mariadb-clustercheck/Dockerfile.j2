@@ -1,9 +1,0 @@
-FROM {{ namespace }}/{{ image_prefix }}mariadb-base:{{ tag }}
-{% block labels %}
-LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
-
-{% block mariadb_clustercheck_header %}{% endblock %}
-
-{% block mariadb_clustercheck_footer %}{% endblock %}
-{% block footer %}{% endblock %}

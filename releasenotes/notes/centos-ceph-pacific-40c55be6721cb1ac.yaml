@@ -1,4 +1,0 @@
----
-features:
-  - |
-    Updates Ceph client packages in CentOS images to Pacific.

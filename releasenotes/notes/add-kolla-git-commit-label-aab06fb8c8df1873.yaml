@@ -1,5 +1,0 @@
----
-upgrade:
-  - |
-    Change ``kolla_version`` label to git sha-1 hash if images
-    are built with kolla from git repository.

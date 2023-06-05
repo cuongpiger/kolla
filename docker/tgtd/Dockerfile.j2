@@ -1,16 +1,15 @@
 FROM {{ namespace }}/{{ image_prefix }}base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block tgtd_header %}{% endblock %}
 
 {% import "macros.j2" as macros with context %}
 
 {% if base_package_type == 'rpm' %}
+    {% set tgtd_packages = ['scsi-target-utils'] %}
 
-RUN echo 'Not available for {{ base_distro }}' \
-    && /bin/false
+{{ macros.install_packages(tgtd_packages | customizable("packages")) }}
+RUN sed -i '1 i include /var/lib/cinder/volumes/*' /etc/tgt/tgtd.conf
 
 {% elif base_package_type == 'deb' %}
     {% set tgtd_packages = ['tgt'] %}

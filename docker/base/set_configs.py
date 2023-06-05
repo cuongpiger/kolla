@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@ import logging
 import os
 import pwd
 import shutil
-import stat
 import sys
 
 
@@ -120,7 +119,6 @@ class ConfigFile(object):
             self._set_properties_from_conf(dest)
 
     def _set_properties_from_file(self, source, dest):
-        LOG.info('Copying permissions from %s onto %s', source, dest)
         shutil.copystat(source, dest)
         stat = os.stat(source)
         os.chown(dest, stat.st_uid, stat.st_gid)
@@ -149,15 +147,7 @@ class ConfigFile(object):
             if not self.merge:
                 self._delete_path(dest)
             self._create_parent_dirs(dest)
-            try:
-                self._merge_directories(source, dest)
-            except OSError:
-                # If a source is tried to merge with a read-only mount, it
-                # may throw an OSError. Because we don't print the source or
-                # dest anywhere, let's catch the exception and log a better
-                # message to help with tracking down the issue.
-                LOG.error('Unable to merge %s with %s', source, dest)
-                raise
+            self._merge_directories(source, dest)
 
     def _cmp_file(self, source, dest):
         # check exsit
@@ -166,7 +156,7 @@ class ConfigFile(object):
                 not os.path.exists(dest)):
             return False
         # check content
-        with open(source, 'rb') as f1, open(dest, 'rb') as f2:
+        with open(source) as f1, open(dest) as f2:
             if f1.read() != f2.read():
                 LOG.error('The content of source file(%s) and'
                           ' dest file(%s) are not equal.', source, dest)
@@ -272,8 +262,21 @@ def validate_source(data):
 
 
 def load_config():
+    def load_from_env():
+        config_raw = os.environ.get("KOLLA_CONFIG")
+        if config_raw is None:
+            return None
+
+        # Attempt to read config
+        try:
+            return json.loads(config_raw)
+        except ValueError:
+            raise InvalidConfig('Invalid json for Kolla config')
+
     def load_from_file():
-        config_file = '/var/lib/kolla/config_files/config.json'
+        config_file = os.environ.get("KOLLA_CONFIG_FILE")
+        if not config_file:
+            config_file = '/var/lib/kolla/config_files/config.json'
         LOG.info("Loading config file at %s", config_file)
 
         # Attempt to read config file
@@ -287,7 +290,9 @@ def load_config():
                 raise InvalidConfig(
                     "Could not read file %s: %r" % (config_file, e))
 
-    config = load_from_file()
+    config = load_from_env()
+    if config is None:
+        config = load_from_file()
 
     LOG.info('Validating config file')
     validate_config(config)
@@ -355,15 +360,6 @@ def handle_permissions(config):
                 if len(perm) == 4 and perm[1] != 'o':
                     perm = ''.join([perm[:1], 'o', perm[1:]])
                 perm = int(perm, base=0)
-
-                # Ensure execute bit on directory if read bit is set
-                if os.path.isdir(path):
-                    if perm & stat.S_IRUSR:
-                        perm |= stat.S_IXUSR
-                    if perm & stat.S_IRGRP:
-                        perm |= stat.S_IXGRP
-                    if perm & stat.S_IROTH:
-                        perm |= stat.S_IXOTH
 
                 try:
                     os.chmod(path, perm)

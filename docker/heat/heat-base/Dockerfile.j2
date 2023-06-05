@@ -1,19 +1,67 @@
 FROM {{ namespace }}/{{ image_prefix }}openstack-base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block heat_base_header %}{% endblock %}
 
 {% import "macros.j2" as macros with context %}
 
-{{ macros.enable_extra_repos(['openvswitch']) }}
 {{ macros.configure_user(name='heat') }}
 
-{% set heat_base_packages = [
-] %}
+{% if install_type == 'binary' %}
+
+{% if base_package_type == 'rpm' %}
+    {% set heat_base_packages = [
+        'httpd',
+        'mod_ssl',
+        'openstack-heat-common'
+    ] %}
+    {% if distro_python_version.startswith('3') %}
+    {% set heat_base_packages = heat_base_packages + ['python3-mod_wsgi'] %}
+    {% else %}
+    {% set heat_base_packages = heat_base_packages + ['mod_wsgi'] %}
+    {% endif %}
 
 {{ macros.install_packages(heat_base_packages | customizable("packages")) }}
+RUN sed -i -r 's,^(Listen 80),#\1,' /etc/httpd/conf/httpd.conf \
+    && sed -i -r 's,^(Listen 443),#\1,' /etc/httpd/conf.d/ssl.conf
+{% elif base_package_type == 'deb' %}
+    {% set heat_base_packages = [
+        'apache2',
+        'heat-common',
+        'libapache2-mod-wsgi-py3'
+    ] %}
+{{ macros.install_packages(heat_base_packages | customizable("packages")) }}
+RUN echo > /etc/apache2/ports.conf
+{% endif %}
+
+{% elif install_type == 'source' %}
+
+{% if base_package_type == 'rpm' %}
+
+    {% set heat_base_packages = [
+        'httpd',
+        'mod_ssl',
+    ] %}
+    {% if distro_python_version.startswith('3') %}
+    {% set heat_base_packages = heat_base_packages + ['python3-mod_wsgi'] %}
+    {% else %}
+    {% set heat_base_packages = heat_base_packages + ['mod_wsgi'] %}
+    {% endif %}
+
+{{ macros.install_packages(heat_base_packages | customizable("packages")) }}
+RUN sed -i -r 's,^(Listen 80),#\1,' /etc/httpd/conf/httpd.conf \
+    && sed -i -r 's,^(Listen 443),#\1,' /etc/httpd/conf.d/ssl.conf
+
+{% elif base_package_type == 'deb' %}
+
+    {% set heat_base_packages = [
+        'apache2',
+        'libapache2-mod-wsgi'
+    ] %}
+
+{{ macros.install_packages(heat_base_packages | customizable("packages")) }}
+RUN echo > /etc/apache2/ports.conf
+{% endif %}
 
 ADD heat-base-archive /heat-base-source
 
@@ -21,13 +69,17 @@ ADD heat-base-archive /heat-base-source
     '/heat'
 ] %}
 
-COPY extend_start.sh /usr/local/bin/kolla_extend_start
-
 RUN ln -s heat-base-source/* heat \
     && {{ macros.install_pip(heat_base_pip_packages | customizable("pip_packages")) }} \
     && mkdir -p /etc/heat \
     && cp -r /heat/etc/heat/* /etc/heat/ \
-    && touch /usr/local/bin/kolla_heat_extend_start \
-    && chmod 644 /usr/local/bin/kolla_extend_start /usr/local/bin/kolla_heat_extend_start
+    && chown -R heat: /etc/heat
+
+{% endif %}
+
+COPY extend_start.sh /usr/local/bin/kolla_extend_start
+
+RUN touch /usr/local/bin/kolla_heat_extend_start \
+    && chmod 755 /usr/local/bin/kolla_extend_start /usr/local/bin/kolla_heat_extend_start
 
 {% block heat_base_footer %}{% endblock %}

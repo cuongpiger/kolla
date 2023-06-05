@@ -1,7 +1,5 @@
 FROM {{ namespace }}/{{ image_prefix }}openstack-base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block vitrage_base_header %}{% endblock %}
 
@@ -9,33 +7,79 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
 
 {{ macros.configure_user(name='vitrage') }}
 
-{% if base_package_type == 'rpm' %}
+{% if install_type == 'binary' %}
 
-    {% set vitrage_base_packages = [
-    ] %}
+    {% if base_package_type == 'rpm' %}
 
-{% elif base_package_type == 'deb' %}
+        {% set vitrage_base_packages = [
+            'openstack-vitrage-common'
+        ] %}
 
-    {% set vitrage_base_packages = [
-    ] %}
+{{ macros.install_packages(vitrage_base_packages | customizable("packages")) }} \
+    && mkdir -p /var/www/cgi-bin/vitrage \
+    && cp -a /usr/lib/python2.7/site-packages/vitrage/api/app.wsgi /var/www/cgi-bin/vitrage/ \
+    && chown -R vitrage: /var/www/cgi-bin/vitrage
 
-{% endif %}
+    {% elif base_package_type == 'deb' %}
+
+RUN echo '{{ install_type }} not yet available for {{ base_distro }}' \
+    && /bin/false
+
+    {% endif %}
+
+{% elif install_type == 'source' %}
+
+    {% if base_package_type == 'rpm' %}
+
+        {% set vitrage_base_packages = [
+            'httpd',
+            'mod_ssl',
+        ] %}
+        {% if distro_python_version.startswith('3') %}
+        {% set vitrage_base_packages = vitrage_base_packages + [
+            'python3-ldappool',
+            'python3-mod_wsgi'
+        ] %}
+        {% else %}
+        {% set vitrage_base_packages = vitrage_base_packages + [
+            'mod_wsgi',
+            'python2-ldappool'
+        ] %}
+        {% endif %}
+
+
 {{ macros.install_packages(vitrage_base_packages | customizable("packages")) }}
+RUN sed -i -r 's,^(Listen 80),#\1,' /etc/httpd/conf/httpd.conf \
+    && sed -i -r 's,^(Listen 443),#\1,' /etc/httpd/conf.d/ssl.conf
+
+    {% elif base_package_type == 'deb' %}
+
+        {% set vitrage_base_packages = [
+            'apache2',
+            'libapache2-mod-wsgi',
+            'python-ldappool'
+        ] %}
+
+{{ macros.install_packages(vitrage_base_packages | customizable("packages")) }}
+RUN echo > /etc/apache2/ports.conf
+{% endif %}
 
 {% set vitrage_base_pip_packages = [
     '/vitrage'
 ] %}
 
 ADD vitrage-base-archive /vitrage-base-source
-
-COPY extend_start.sh /usr/local/bin/kolla_extend_start
-
 RUN ln -s vitrage-base-source/* vitrage \
     && {{ macros.install_pip(vitrage_base_pip_packages | customizable("pip_packages")) }} \
     && mkdir -p /etc/vitrage /var/www/cgi-bin/vitrage \
     && cp -r /vitrage/etc/vitrage/* /etc/vitrage/ \
     && cp /vitrage/vitrage/api/app.wsgi /var/www/cgi-bin/vitrage \
-    && touch /usr/local/bin/kolla_vitrage_extend_start \
-    && chmod 644 /usr/local/bin/kolla_extend_start /usr/local/bin/kolla_vitrage_extend_start
+    && chown -R vitrage: /etc/vitrage /var/www/cgi-bin/vitrage
+
+{% endif %}
+
+COPY extend_start.sh /usr/local/bin/kolla_extend_start
+RUN touch /usr/local/bin/kolla_vitrage_extend_start \
+    && chmod 755 /usr/local/bin/kolla_extend_start /usr/local/bin/kolla_vitrage_extend_start
 
 {% block vitrage_base_footer %}{% endblock %}

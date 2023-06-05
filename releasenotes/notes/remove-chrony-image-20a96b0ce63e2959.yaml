@@ -1,4 +1,0 @@
----
-upgrade:
-  - |
-    ``chrony`` image has been removed.

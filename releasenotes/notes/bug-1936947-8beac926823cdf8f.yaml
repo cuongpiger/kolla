@@ -1,5 +1,0 @@
----
-fixes:
-  - |
-    Fixes wrong update-alternatives usage on CentOS.
-    `LP#1936947 <https://launchpad.net/bugs/1936947>`__

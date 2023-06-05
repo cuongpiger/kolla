@@ -1,7 +1,5 @@
 FROM {{ namespace }}/{{ image_prefix }}base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block redis_base_header %}{% endblock %}
 
@@ -10,6 +8,6 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
 {{ macros.configure_user(name='redis', homedir='/run/redis') }}
 
 COPY extend_start.sh /usr/local/bin/kolla_extend_start
-RUN chmod 644 /usr/local/bin/kolla_extend_start
+RUN chmod 755 /usr/local/bin/kolla_extend_start
 
 {% block redis_base_footer %}{% endblock %}

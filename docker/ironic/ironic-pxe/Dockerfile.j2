@@ -1,7 +1,5 @@
 FROM {{ namespace }}/{{ image_prefix }}ironic-base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block ironic_pxe_header %}{% endblock %}
 
@@ -9,27 +7,40 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
 
 {% if base_package_type == 'rpm' %}
     {% set ironic_pxe_packages = [
-        'grub2-tools',
-        'grub2-efi-*64',
-        'grub2-efi-aa64-modules',
+        'httpd',
         'ipxe-bootimgs',
-        'shim-*64',
-        'tftp-server',
+        'mod_ssl',
+        'tftp-server'
     ] %}
+    {% if distro_python_version.startswith('3') %}
+    {% set ironic_pxe_packages = ironic_pxe_packages + ['python3-mod_wsgi'] %}
+    {% else %}
+    {% set ironic_pxe_packages = ironic_pxe_packages + ['mod_wsgi'] %}
+    {% endif %}
 
-    {% if base_arch in ['x86_64'] %}
+    {% if base_arch == 'x86_64' %}
         {% set ironic_pxe_packages = ironic_pxe_packages + [
             'syslinux-tftpboot'
         ] %}
     {% endif %}
 
+    {% if base_arch == 'aarch64' %}
+ENV ironic_arch=aarch64
+        {% set ironic_pxe_packages = ironic_pxe_packages + [
+            'grub2-efi',
+            'grub2-efi-aa64-modules'
+        ] %}
+    {% endif %}
+
 {{ macros.install_packages(ironic_pxe_packages | customizable("packages")) }}
+RUN sed -i -r 's,^(Listen 80),#\1,' /etc/httpd/conf/httpd.conf \
+    && sed -i -r 's,^(Listen 443),#\1,' /etc/httpd/conf.d/ssl.conf
 {% elif base_package_type == 'deb' %}
     {% set ironic_pxe_packages = [
-        'grub-efi-*64-signed',
+        'apache2',
         'ipxe',
+        'libapache2-mod-wsgi-py3',
         'pxelinux',
-        'shim-signed',
         'syslinux-common',
         'tftpd-hpa'
     ] %}
@@ -38,16 +49,20 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
         {% set ironic_pxe_packages = ironic_pxe_packages + [
             'syslinux'
         ] %}
+    {% elif base_arch == 'aarch64' %}
+ENV ironic_arch=aarch64
+        {% set ironic_pxe_packages = ironic_pxe_packages + [
+            'grub-efi-arm64'
+        ] %}
     {% endif %}
 
 {{ macros.install_packages(ironic_pxe_packages | customizable("packages")) }}
+RUN echo > /etc/apache2/ports.conf
 {% endif %}
 
-ENV TFTPBOOT_PATH=/tftpboot \
-    HTTPBOOT_PATH=/httpboot
-COPY tftp-map-file-template /map-file-template
+COPY tftp-map-file /map-file
 COPY extend_start.sh /usr/local/bin/kolla_ironic_extend_start
-RUN chmod 644 /usr/local/bin/kolla_ironic_extend_start
+RUN chmod 755 /usr/local/bin/kolla_ironic_extend_start
 
 {% block ironic_pxe_footer %}{% endblock %}
 {% block footer %}{% endblock %}

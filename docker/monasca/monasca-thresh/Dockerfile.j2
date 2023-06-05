@@ -1,0 +1,74 @@
+FROM {{ namespace }}/{{ image_prefix }}storm:{{ tag }}
+LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
+
+USER root
+
+{% block monasca_thresh_header %}{% endblock %}
+
+{% import "macros.j2" as macros with context %}
+
+{{ macros.configure_user(name='monasca') }}
+
+{% if install_type == 'binary' %}
+
+RUN echo '{{ install_type }} not yet available for {{ base_distro }}' \
+    && /bin/false
+
+{% elif install_type == 'source' %}
+
+{% if base_package_type == 'rpm' %}
+    {% set monasca_thresh_packages = [
+        'maven',
+    ] %}
+
+ENV JAVA_HOME /usr/lib/jvm/jre-1.8.0-openjdk/
+
+{% elif base_package_type == 'deb' %}
+
+    {% if base_distro == 'debian' %}
+        {% set java_version = '11' %}
+    {% elif base_distro == 'ubuntu' %}
+        {% set java_version = '8' %}
+    {% endif %}
+
+    {% set monasca_thresh_packages = [
+        'openjdk-' + java_version + '-jdk-headless',
+        'maven',
+    ] %}
+
+ENV JAVA_HOME /usr/lib/jvm/java-{{java_version}}-openjdk-{{debian_arch}}/
+
+{% endif %}
+
+{{ macros.install_packages(monasca_thresh_packages | customizable("packages")) }}
+
+ADD monasca-thresh-archive /monasca-thresh-source
+ADD additions/monasca-common* /monasca-common-source
+
+{% block monasca_thresh_source_install %}
+
+{% set build_opts = ['-DskipTests'] %}
+
+# FIXME(dszumski): Remove this when the following bug is fixed:
+# https://bugs.launchpad.net/ubuntu/+source/ca-certificates-java/+bug/1770553
+{% if base_distro == 'ubuntu' %}
+{% set build_opts = build_opts + ['-Djavax.net.ssl.trustStorePassword=changeit'] %}
+{% endif %}
+
+RUN cd /monasca-common-source/java \
+    && mvn clean install {{ build_opts|join(' ') }} \
+    && cd /monasca-thresh-source/monasca-thresh-*/thresh \
+    && mvn clean package {{ build_opts|join(' ') }}
+{% endblock %}
+
+{% endif %}
+
+# Overwrite the script inherited from Storm
+COPY extend_start.sh /usr/local/bin/kolla_extend_start
+RUN touch /usr/local/bin/kolla_monasca_extend_start \
+    && chmod 755 /usr/local/bin/kolla_extend_start /usr/local/bin/kolla_monasca_extend_start
+
+{% block monasca_thresh_footer %}{% endblock %}
+{% block footer %}{% endblock %}
+
+USER monasca

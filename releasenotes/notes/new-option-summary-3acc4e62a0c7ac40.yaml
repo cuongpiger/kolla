@@ -1,4 +1,0 @@
----
-features:
-  - |
-    Added new option "--(no)summary" to allow to hide after build summary.

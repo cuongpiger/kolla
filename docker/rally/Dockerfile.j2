@@ -1,0 +1,54 @@
+FROM {{ namespace }}/{{ image_prefix }}openstack-base:{{ tag }}
+LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
+
+{% block rally_header %}{% endblock %}
+
+{% import "macros.j2" as macros with context %}
+
+{{ macros.configure_user(name='rally') }}
+
+{% if install_type == 'binary' %}
+
+{% if base_package_type == 'rpm' %}
+    {% set rally_packages = [
+        'openstack-rally'
+    ] %}
+
+    {% if distro_python_version.startswith('3') %}
+    {% set rally_packages = rally_packages + [
+        'python3-os-testr'
+    ] %}
+    {% else %}
+    {% set rally_packages = rally_packages + [
+        'python-os-testr'
+    ] %}
+    {% endif %}
+{% elif base_package_type == 'deb' %}
+    {% set rally_packages = [
+        'python-os-testr',
+        'rally'
+    ] %}
+{% endif %}
+{{ macros.install_packages(rally_packages | customizable("packages")) }}
+{% elif install_type == 'source' %}
+
+ADD rally-archive /rally-source
+
+{% set rally_pip_packages = [
+    '/rally',
+    'os-testr'
+] %}
+
+RUN ln -s rally-source/* rally \
+    && {{ macros.install_pip(rally_pip_packages | customizable("pip_packages")) }} \
+    && mkdir -p /etc/rally \
+    && chown -R rally: /etc/rally
+{% endif %}
+
+COPY extend_start.sh /usr/local/bin/kolla_extend_start
+RUN chmod 755 /usr/local/bin/kolla_extend_start
+
+{% block rally_footer %}{% endblock %}
+{% block footer %}{% endblock %}
+
+USER rally

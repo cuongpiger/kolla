@@ -1,5 +1,0 @@
----
-fixes:
-  - |
-    Fixes kolla-toolbox ansible.log logging for different users than ansible.
-    `LP#1942846 <https://launchpad.net/bugs/1942846>`__

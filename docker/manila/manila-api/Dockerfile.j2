@@ -1,21 +1,74 @@
 FROM {{ namespace }}/{{ image_prefix }}manila-base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block manila_api_header %}{% endblock %}
 
 {% import "macros.j2" as macros with context %}
 
-{% set manila_api_packages = [
-] %}
+{% if install_type == 'binary' %}
+    {% if base_package_type == 'rpm' %}
+        {% set manila_api_packages = [
+                'httpd',
+                'mod_ssl',
+        ] %}
+        {% if distro_python_version.startswith('3') %}
+        {% set manila_api_packages = manila_api_packages + ['python3-mod_wsgi' ] %}
+        {% else %}
+        {% set manila_api_packages = manila_api_packages + ['mod_wsgi' ] %}
+        {% endif %}
 {{ macros.install_packages(manila_api_packages | customizable("packages")) }}
+RUN mkdir -p /var/www/cgi-bin/manila \
+    && cp -a /usr/bin/manila-wsgi /var/www/cgi-bin/manila/manila-wsgi \
+    && sed -i -r 's,^(Listen 80),#\1,' /etc/httpd/conf/httpd.conf \
+    && sed -i -r 's,^(Listen 443),#\1,' /etc/httpd/conf.d/ssl.conf
 
-COPY extend_start.sh /usr/local/bin/kolla_manila_extend_start
+    {% elif base_package_type == 'deb' %}
+        {% set manila_api_packages = [
+                'apache2',
+                'libapache2-mod-wsgi-py3',
+                'manila-api'
+        ] %}
+{{ macros.install_packages(manila_api_packages | customizable("packages")) }}
+RUN mkdir -p /var/www/cgi-bin/manila \
+    && cp -a /usr/bin/manila-wsgi /var/www/cgi-bin/manila/manila-wsgi \
+    && echo > /etc/apache2/ports.conf
+    {% endif %}
+
+
+{% elif install_type == 'source' %}
+
+    {% if base_package_type == 'rpm' %}
+        {% set manila_api_packages = [
+                'httpd',
+                'mod_ssl',
+        ] %}
+        {% if distro_python_version.startswith('3') %}
+        {% set manila_api_packages = manila_api_packages + ['python3-mod_wsgi' ] %}
+        {% else %}
+        {% set manila_api_packages = manila_api_packages + ['mod_wsgi' ] %}
+        {% endif %}
+{{ macros.install_packages(manila_api_packages | customizable("packages")) }}
+RUN sed -i -r 's,^(Listen 80),#\1,' /etc/httpd/conf/httpd.conf \
+    && sed -i -r 's,^(Listen 443),#\1,' /etc/httpd/conf.d/ssl.conf
+
+    {% elif base_package_type == 'deb' %}
+        {% set manila_api_packages = [
+                'apache2',
+                'libapache2-mod-wsgi'
+        ] %}
+{{ macros.install_packages(manila_api_packages | customizable("packages")) }}
+RUN echo > /etc/apache2/ports.conf
+
+    {% endif %}
 
 RUN mkdir -p /var/www/cgi-bin/manila \
-    && cp -a /var/lib/kolla/venv/bin/manila-wsgi /var/www/cgi-bin/manila/manila-wsgi \
-    && chmod 644 /usr/local/bin/kolla_manila_extend_start \
+    && cp -a /var/lib/kolla/venv/bin/manila-wsgi /var/www/cgi-bin/manila/manila-wsgi
+
+{% endif %}
+
+COPY extend_start.sh /usr/local/bin/kolla_manila_extend_start
+RUN chmod 755 /usr/local/bin/kolla_manila_extend_start \
+    && chown -R manila: /var/www/cgi-bin/manila \
     && chmod 755 /var/www/cgi-bin/manila/manila-wsgi
 
 {% block manila_api_footer %}{% endblock %}

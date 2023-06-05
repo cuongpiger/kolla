@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,11 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import os
-import yaml
-
-from jinja2 import pass_context
 
 
 def debian_package_install(packages, clean_package_cache=True):
@@ -47,7 +44,7 @@ def debian_package_install(packages, clean_package_cache=True):
 
     # handle the apt-get install
     if reg_packages:
-        cmds.append('apt-get --error-on=any update')
+        cmds.append('apt-get update')
         cmds.append('apt-get -y install --no-install-recommends {}'.format(
             ' '.join(reg_packages)
         ))
@@ -67,81 +64,3 @@ def debian_package_install(packages, clean_package_cache=True):
 
     # return the list of commands
     return ' && '.join(cmds)
-
-
-@pass_context
-def handle_repos(context, reponames, mode):
-    """NOTE(hrw): we need to handle CentOS, Debian and Ubuntu with one macro.
-
-    Repo names have to be simple names mapped to proper ones.  So 'ceph' ==
-    'centos-ceph-pacific' for CentOS, UCA for Ubuntu (enabled by default) and
-    something else for Debian.
-    Distro/arch are not required to have all entries - we ignore missing ones.
-    """
-
-    if mode == 'enable':
-        rpm_switch = '--enable'
-    elif mode == 'disable':
-        rpm_switch = '--disable'
-    else:
-        raise KeyError
-
-    if not isinstance(reponames, list):
-        raise TypeError("First argument should be a list of repositories")
-
-    if context.get('repos_yaml'):
-        repofile = context.get('repos_yaml')
-    else:
-        repofile = os.path.dirname(os.path.realpath(__file__)) + '/repos.yaml'
-
-    with open(repofile, 'r') as repos_file:
-        repo_data = {}
-        for name, params in yaml.safe_load(repos_file).items():
-            repo_data[name] = params
-
-    base_package_type = context.get('base_package_type')
-    base_distro = context.get('base_distro')
-    base_arch = context.get('base_arch')
-
-    commands = ''
-
-    try:
-        repo_list = repo_data['%s-%s' % (base_distro, base_arch)]
-    except KeyError:
-        # NOTE(hrw): Fallback to distro list
-        repo_list = repo_data[base_distro]
-
-    for repo in reponames:
-        try:
-            if base_package_type == 'rpm':
-                commands += ' %s %s' % (rpm_switch, repo_list[repo])
-            elif base_package_type == 'deb':
-                if mode == 'enable':
-                    commands += f"""echo 'Uris: {repo_list[repo]['url']}' \
->/etc/apt/sources.list.d/{repo}.sources \
-&& echo 'Components: {repo_list[repo]['component']}' \
->>/etc/apt/sources.list.d/{repo}.sources \
-&& echo 'Types: deb' >>/etc/apt/sources.list.d/{repo}.sources \
-&& echo 'Suites: {repo_list[repo]['suite']}' \
->>/etc/apt/sources.list.d/{repo}.sources \
-&& echo 'Signed-By: /etc/kolla/apt-keys/{repo_list[repo]['gpg_key']}' \
->>/etc/apt/sources.list.d/{repo}.sources \
-&& """
-        except KeyError:
-            # NOTE(hrw): we ignore missing repositories for a given
-            # distro/arch
-            pass
-
-    if base_package_type == 'rpm' and commands:
-        # NOTE(hrw): if commands is empty then no repos are enabled
-        # otherwise we need to add command to handle repositories
-        # NOTE(hrw) dnf errors out if we enable unknown repo
-        commands = 'dnf config-manager %s || true' % commands
-    elif base_package_type == 'deb':
-        # NOTE(hrw): Debian commands end with '&&'
-        commands = commands[0:-4]
-
-    if commands:
-        commands = "RUN %s" % commands
-
-    return commands

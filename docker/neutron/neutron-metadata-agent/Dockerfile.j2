@@ -1,14 +1,19 @@
 FROM {{ namespace }}/{{ image_prefix }}neutron-base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block neutron_metadata_agent_header %}{% endblock %}
 
 {% import "macros.j2" as macros with context %}
 
-{% set neutron_metadata_agent_packages = [
-] %}
+{% if base_package_type == 'deb' %}
+    {% if install_type == 'binary' %}
+
+        {% set neutron_metadata_agent_packages = [
+            'neutron-metadata-agent'
+        ] %}
+
+    {% endif %}
+{% endif %}
 
 {{ macros.install_packages(neutron_metadata_agent_packages | customizable("packages")) }}
 

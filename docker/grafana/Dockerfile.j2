@@ -1,15 +1,35 @@
 FROM {{ namespace }}/{{ image_prefix }}base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block grafana_header %}{% endblock %}
 
 {% import "macros.j2" as macros with context %}
 
-{{ macros.enable_extra_repos(['grafana']) }}
-
 {% set grafana_packages = ['grafana'] %}
+
+{% if base_arch not in ['aarch64', 'x86_64'] %}
+
+RUN echo 'There are no Grafana external repositories for {{ base_arch }}' \
+    && /bin/false
+
+{% elif base_arch in ['aarch64'] %}
+
+    {% if base_distro in ['centos'] %}
+
+        {% set grafana_packages = [
+            'https://s3-us-west-2.amazonaws.com/grafana-releases/release/grafana-5.2.4-1.aarch64.rpm'
+        ] %}
+
+    {% elif base_package_type == 'deb' %}
+
+        {% set grafana_packages = [
+            'libfontconfig',
+            'https://s3-us-west-2.amazonaws.com/grafana-releases/release/grafana_5.2.4_arm64.deb'
+        ] %}
+
+    {% endif %}
+
+{% endif %}
 
 {{ macros.configure_user(name='grafana', homedir='/usr/share/grafana') }}
 
@@ -20,15 +40,11 @@ WORKDIR /usr/share/grafana
 COPY grafana_sudoers /etc/sudoers.d/kolla_grafana_sudoers
 COPY extend_start.sh /usr/local/bin/kolla_extend_start
 
-{% block grafana_plugins_install %}
-
-RUN grafana-cli plugins install gnocchixyz-gnocchi-datasource
-
-{% endblock %}
-
-RUN chmod 750 /etc/sudoers.d \
+RUN grafana-cli plugins install gnocchixyz-gnocchi-datasource \
+    && grafana-cli plugins install grafana-influxdb-08-datasource \
+    && chmod 750 /etc/sudoers.d \
     && chmod 440 /etc/sudoers.d/kolla_grafana_sudoers \
-    && chmod 644 /usr/local/bin/kolla_extend_start
+    && chmod 755 /usr/local/bin/kolla_extend_start
 
 {% block grafana_footer %}{% endblock %}
 {% block footer %}{% endblock %}

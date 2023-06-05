@@ -1,7 +1,5 @@
 FROM {{ namespace }}/{{ image_prefix }}cinder-base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block cinder_volume_header %}{% endblock %}
 
@@ -9,37 +7,54 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
 
 {% if base_package_type == 'rpm' %}
     {% set cinder_volume_packages = [
-        'device-mapper-multipath',
-        'nfs-utils',
-        'nvmetcli',
-        'sysfsutils',
-        'targetcli'
+            'nfs-utils',
+            'nvmetcli',
+            'scsi-target-utils',
+            'sysfsutils',
+            'targetcli'
     ] %}
-{% elif base_package_type == 'deb' %}
-    {% set cinder_volume_packages = [
-        'lsscsi',
-        'multipath-tools',
-        'nfs-common',
-        'nvme-cli',
-        'sysfsutils',
-        'targetcli-fb',
-        'thin-provisioning-tools',
-        'tgt'
-    ] %}
-{% endif %}
 
+    {% if distro_python_version.startswith('3') %}
+    {% set cinder_volume_packages = cinder_volume_packages + [
+            'python3-rtslib',
+    ] %}
+    {% else %}
+    {% set cinder_volume_packages = cinder_volume_packages + [
+            'python-rtslib',
+    ] %}
+    {% endif %}
 {{ macros.install_packages(cinder_volume_packages | customizable("packages")) }}
 
-{% if base_package_type == 'rpm' %}
-
 {% block cinder_volume_redhat_setup %}
+RUN sed -i '1 i include /var/lib/cinder/volumes/*' /etc/tgt/tgtd.conf
 {% endblock %}
 
 {% elif base_package_type == 'deb' %}
+    {% set cinder_volume_packages = [
+            'nfs-common',
+            'sysfsutils',
+            'python3-rtslib-fb',
+            'targetcli-fb',
+            'thin-provisioning-tools',
+            'tgt'
+    ] %}
+
+{{ macros.install_packages(cinder_volume_packages | customizable("packages")) }}
 
 {% block cinder_volume_ubuntu_setup %}
 RUN sed -i '1 i include /var/lib/cinder/volumes/*' /etc/tgt/targets.conf
 {% endblock %}
+
+{% endif %}
+
+{% if install_type == 'binary' %}
+    {% if base_package_type == 'deb' %}
+        {% set cinder_volume_packages = [
+            'cinder-volume',
+        ] %}
+
+{{ macros.install_packages(cinder_volume_packages | customizable("packages")) }}
+    {% endif %}
 
 {% endif %}
 
@@ -48,7 +63,7 @@ COPY extend_start.sh /usr/local/bin/kolla_cinder_extend_start
 
 RUN chmod 750 /etc/sudoers.d \
     && chmod 440 /etc/sudoers.d/kolla_cinder_volume_sudoers \
-    && chmod 644 /usr/local/bin/kolla_cinder_extend_start
+    && chmod 755 /usr/local/bin/kolla_cinder_extend_start
 
 {% block cinder_volume_footer %}{% endblock %}
 {% block footer %}{% endblock %}

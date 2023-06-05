@@ -1,5 +1,0 @@
----
-issues:
-  - |
-    AArch64 images using CentOS as base system are not supported in Ussuri.
-    This may be fixed when CentOS 8.2 is released.

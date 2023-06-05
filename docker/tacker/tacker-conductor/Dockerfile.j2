@@ -1,11 +1,27 @@
 FROM {{ namespace }}/{{ image_prefix }}tacker-base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block tacker_conductor_header %}{% endblock %}
 
 {% import "macros.j2" as macros with context %}
+
+{% if install_type == 'binary' %}
+
+    {% if base_package_type == 'rpm' %}
+        {% set tacker_conductor_packages = [
+            'openstack-tacker'
+        ] %}
+
+    {% elif base_package_type == 'deb' %}
+
+RUN echo '{{ install_type }} not yet available for {{ base_distro }}' \
+    && /bin/false
+
+    {% endif %}
+
+{{ macros.install_packages(tacker_conductor_packages | customizable("packages")) }}
+
+{% endif %}
 
 {% block tacker_conductor_footer %}{% endblock %}
 {% block footer %}{% endblock %}

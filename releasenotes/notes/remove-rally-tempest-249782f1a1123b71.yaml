@@ -1,5 +1,0 @@
----
-upgrade:
-  - |
-    The ``Rally`` and ``Tempest`` projects are not OpenStack services,
-    but clients. Its images and support have been removed since Xena cycle.

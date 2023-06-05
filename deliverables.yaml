@@ -5,8 +5,8 @@
 
 ---
 - name: kolla
-  repository: https://opendev.org/openstack/kolla
+  repository: https://git.openstack.org/cgit/openstack/kolla
 - name: kolla-ansible
-  repository: https://opendev.org/openstack/kolla-ansible
-- name: kayobe
-  repository: https://opendev.org/openstack/kayobe
+  repository: https://git.openstack.org/cgit/openstack/kolla-ansible
+- name: kolla-cli
+  repository: https://git.openstack.org/cgit/openstack/kolla-cli

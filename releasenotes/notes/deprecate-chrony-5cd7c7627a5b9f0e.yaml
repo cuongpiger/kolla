@@ -1,4 +1,0 @@
----
-deprecations:
-  - |
-    The ``chrony`` image is deprecated and will be removed in the Xena cycle.

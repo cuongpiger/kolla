@@ -1,4 +1,0 @@
----
-upgrade:
-  - |
-    The ``qdrouterd`` image has been dropped.

@@ -1,6 +1,0 @@
----
-features:
-  - |
-    Adds ``collectd-pmu`` package to ``collectd`` RHEL-based image.
-    This allows to collect Intel PMU (performance counters) data via
-    ``collectd``.

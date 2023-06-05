@@ -1,6 +1,10 @@
 [rabbitmq_rabbitmq-server]
 name=rabbitmq_rabbitmq-server
-baseurl=https://packagecloud.io/rabbitmq/rabbitmq-server/el/8/$basearch
-gpgcheck=1
-enabled=0
-gpgkey = https://github.com/rabbitmq/signing-keys/releases/download/2.0/rabbitmq-release-signing-key.asc
+baseurl=https://packagecloud.io/rabbitmq/rabbitmq-server/el/7/$basearch
+repo_gpgcheck=1
+gpgcheck=0
+enabled=1
+gpgkey=https://packagecloud.io/rabbitmq/rabbitmq-server/gpgkey
+sslverify=1
+sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+metadata_expire=300

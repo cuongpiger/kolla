@@ -1,5 +1,0 @@
----
-features:
-  - |
-    With the block ``labels`` it is possible to adjust the used
-    labels of the built images.

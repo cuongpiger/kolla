@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -40,24 +40,10 @@ RELEASE_REPO = 'https://github.com/openstack/releases'
 TARGET = '.releases'
 
 SKIP_PROJECTS = {
+    'crane': 'Crane is not managed by openstack/releases project',
     'gnocchi-base': 'Gnocchi is not managed by openstack/releases project',
     'monasca-thresh': 'Package not published in tarballs.openstack.org',
-}
-
-# NOTE(hrw): those projects we take as they are they may have just one old
-# release or no stable branch tarballs
-ALWAYS_USE_VERSION_PROJECTS = {
-}
-
-# NOTE(hrw): those projects have different names for release tarballs (first
-# column) and other for branch tarballs
-RENAME_PROJECTS = {
-    'kuryr-lib': 'kuryr',
-    'openstack-cyborg': 'cyborg',
-    'openstack-heat': 'heat',
-    'openstack-placement': 'placement',
-    'python-watcher': 'watcher',
-    'requirements-stable': 'requirements',
+    'rally': 'Rally is not managed by openstack/releases project',
 }
 
 RE_DEFAULT_BRANCH = re.compile('^defaultbranch=stable/(.*)')
@@ -138,9 +124,6 @@ def main():
     parser.add_argument('--check', '-c',
                         default=False, action='store_true',
                         help='Run without update config.py file')
-    parser.add_argument('--versioned-releases', '-v',
-                        default=False, action='store_true',
-                        help='Use versioned releases tarballs')
     conf = parser.parse_args(sys.argv[1:])
 
     if not conf.openstack_release:
@@ -175,14 +158,10 @@ def main():
         else:
             raise ValueError('Can not parse "%s"' % filename)
 
-        if (project_name == "requirements" or
-                (not conf.versioned_releases and
-                 project_name not in ALWAYS_USE_VERSION_PROJECTS)):
+        if project_name == "requirements":
             # Use the stable branch for requirements.
             latest_tag = "stable-{}".format(conf.openstack_release)
             tarball_base = project_name
-            if project_name in RENAME_PROJECTS:
-                tarball_base = RENAME_PROJECTS[project_name]
         elif project_name in projects:
             latest_tag = projects[project_name]['latest_version']
             tarball_base = projects[project_name]['tarball_base']

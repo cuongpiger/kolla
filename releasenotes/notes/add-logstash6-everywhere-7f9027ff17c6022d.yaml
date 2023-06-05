@@ -1,4 +1,0 @@
----
-upgrade:
-  - |
-    The Logstash image has been upgraded from Logstash 2 to Logstash 6.

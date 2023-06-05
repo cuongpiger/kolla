@@ -1,13 +1,41 @@
 FROM {{ namespace }}/{{ image_prefix }}openstack-base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block sahara_base_header %}{% endblock %}
 
 {% import "macros.j2" as macros with context %}
 
 {{ macros.configure_user(name='sahara') }}
+
+{% if install_type == 'binary' %}
+
+{% if base_package_type == 'rpm' %}
+    {% set sahara_base_packages = ['openstack-sahara-common'] %}
+    {% if distro_python_version.startswith('3') %}
+    {% set sahara_base_packages = sahara_base_packages + [
+         'python3-sahara-plugin-ambari',
+         'python3-sahara-plugin-cdh',
+         'python3-sahara-plugin-mapr',
+         'python3-sahara-plugin-spark',
+         'python3-sahara-plugin-storm',
+         'python3-sahara-plugin-vanilla'
+     ] %}
+    {% else %}
+    {% set sahara_base_packages = sahara_base_packages + [
+         'python2-sahara-plugin-ambari',
+         'python2-sahara-plugin-cdh',
+         'python2-sahara-plugin-mapr',
+         'python2-sahara-plugin-spark',
+         'python2-sahara-plugin-storm',
+         'python2-sahara-plugin-vanilla'
+     ] %}
+    {% endif %}
+{% elif base_package_type == 'deb' %}
+    {% set sahara_base_packages = ['sahara-common'] %}
+{% endif %}
+{{ macros.install_packages(sahara_base_packages | customizable("packages")) }}
+
+{% elif install_type == 'source' %}
 
 {% if base_package_type == 'rpm' %}
     {% set sahara_base_packages = ['openssh'] %}
@@ -26,9 +54,6 @@ ADD plugins-archive /
     '/plugins/*',
 ] %}
 
-COPY sahara_sudoers /etc/sudoers.d/kolla_sahara_sudoers
-COPY extend_start.sh /usr/local/bin/kolla_extend_start
-
 RUN ln -s sahara-base-source/* sahara \
     && {{ macros.install_pip(sahara_base_pip_packages | customizable("pip_packages")) }} \
     && if [ "$(ls /plugins)" ]; then \
@@ -36,10 +61,17 @@ RUN ln -s sahara-base-source/* sahara \
     fi \
     && mkdir -p /etc/sahara \
     && cp -r /sahara/etc/sahara/* /etc/sahara/ \
-    && sed -i 's|^exec_dirs.*|exec_dirs=/var/lib/kolla/venv/bin,/sbin,/usr/sbin,/bin,/usr/bin,/usr/local/bin,/usr/local/sbin|g' /etc/sahara/rootwrap.conf \
-    && chmod 750 /etc/sudoers.d \
+    && chown -R sahara: /etc/sahara \
+    && sed -i 's|^exec_dirs.*|exec_dirs=/var/lib/kolla/venv/bin,/sbin,/usr/sbin,/bin,/usr/bin,/usr/local/bin,/usr/local/sbin|g' /etc/sahara/rootwrap.conf
+
+{% endif %}
+
+COPY sahara_sudoers /etc/sudoers.d/kolla_sahara_sudoers
+COPY extend_start.sh /usr/local/bin/kolla_extend_start
+
+RUN chmod 750 /etc/sudoers.d \
     && chmod 640 /etc/sudoers.d/kolla_sahara_sudoers \
     && touch /usr/local/bin/kolla_sahara_extend_start \
-    && chmod 644 /usr/local/bin/kolla_extend_start /usr/local/bin/kolla_sahara_extend_start
+    && chmod 755 /usr/local/bin/kolla_extend_start /usr/local/bin/kolla_sahara_extend_start
 
 {% block sahara_base_footer %}{% endblock %}

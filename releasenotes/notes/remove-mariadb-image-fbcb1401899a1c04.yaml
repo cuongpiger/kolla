@@ -1,6 +1,0 @@
----
-upgrade:
-  - |
-    Docker image ``mariadb`` has been removed. ``mariadb-server`` image has
-    been introduced in Victoria release with deprecation of ``mariadb`` image
-    at the same time.

@@ -1,14 +1,28 @@
 FROM {{ namespace }}/{{ image_prefix }}gnocchi-base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block gnocchi_api_header %}{% endblock %}
 
 {% import "macros.j2" as macros with context %}
 
+{% if install_type == 'binary' %}
+    {% if base_package_type == 'rpm' %}
+       {% set gnocchi_api_packages = [
+            'gnocchi-api',
+            'gnocchi-common'
+        ] %}
+    {% elif base_package_type == 'deb' %}
+        {% set gnocchi_api_packages = ['gnocchi-api'] %}
+    {% endif %}
+{{ macros.install_packages(gnocchi_api_packages | customizable("packages")) }}
+
+    {% if base_package_type == 'deb' %}
+RUN rm -rf /etc/apache2/sites-enabled/gnocchi-api.conf
+    {% endif %}
+{% endif %}
+
 COPY extend_start.sh /usr/local/bin/kolla_gnocchi_extend_start
-RUN chmod 644 /usr/local/bin/kolla_gnocchi_extend_start
+RUN chmod 755 /usr/local/bin/kolla_gnocchi_extend_start
 
 {% block gnocchi_api_footer %}{% endblock %}
 {% block footer %}{% endblock %}

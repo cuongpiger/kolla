@@ -1,12 +1,19 @@
 FROM {{ namespace }}/{{ image_prefix }}mistral-base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block mistral_executor_header %}{% endblock %}
 
 {% import "macros.j2" as macros with context %}
 
+{% if install_type == 'binary' %}
+    {% if base_package_type == 'rpm' %}
+        {% set mistral_executor_packages = ['openstack-mistral-executor'] %}
+    {% elif base_package_type == 'deb' %}
+        {% set mistral_executor_packages = ['mistral-executor'] %}
+    {% endif %}
+{{ macros.install_packages(mistral_executor_packages | customizable("packages")) }}
+
+{% endif %}
 {% block mistral_executor_footer %}{% endblock %}
 {% block footer %}{% endblock %}
 

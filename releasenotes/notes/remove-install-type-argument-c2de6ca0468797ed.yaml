@@ -1,5 +1,0 @@
----
-upgrade:
-  - |
-    ``install_type`` argument is now removed. We no longer support
-    other values than ``source`` therefore handling of argument was dropped.

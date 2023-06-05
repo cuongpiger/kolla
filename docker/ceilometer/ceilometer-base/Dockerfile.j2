@@ -1,7 +1,5 @@
 FROM {{ namespace }}/{{ image_prefix }}openstack-base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block ceilometer_base_header %}{% endblock %}
 
@@ -9,8 +7,41 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
 
 {{ macros.configure_user(name='ceilometer') }}
 
+{% if install_type == 'binary' %}
+    {% if base_package_type == 'rpm' %}
+        {% set ceilometer_base_packages = [
+            'openstack-ceilometer-common'
+        ] %}
+        {% if distro_python_version.startswith('3') %}
+        {% set ceilometer_base_packages = ceilometer_base_packages + [
+            'python3-gnocchiclient',
+            'python3-oslo-db',
+            'python3-panko',
+            'python3-tooz'
+         ] %}
+        {% else %}
+        {% set ceilometer_base_packages = ceilometer_base_packages + [
+            'python-gnocchiclient',
+            'python-oslo-db',
+            'python-panko',
+            'python-tooz'
+         ] %}
+        {% endif %}
+    {% elif base_package_type == 'deb' %}
+        {% set ceilometer_base_packages = [
+            'ceilometer-common',
+            'python3-gnocchiclient',
+            'python3-panko',
+            'python3-pymongo'
+         ] %}
+    {% endif %}
+
+{{ macros.install_packages(ceilometer_base_packages | customizable("packages")) }}
+
+{% elif install_type == 'source' %}
+
 {% set ceilometer_base_pip_packages = [
-    '/ceilometer'
+    '/ceilometer[gnocchi,mongo,mysql]'
 ] %}
 
 {% set ceilometer_base_plugins_pip_packages = [
@@ -19,23 +50,26 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
 
 ADD ceilometer-base-archive /ceilometer-base-source
 ADD plugins-archive /
+# NOTE(egonzalez): Remove ceilometer from constraint or will fail.
+RUN ln -s ceilometer-base-source/* ceilometer \
+    && sed -i 's|^ceilometer===.*$||g' requirements/upper-constraints.txt \
+    && {{ macros.install_pip(ceilometer_base_pip_packages | customizable("pip_packages")) }} \
+    && mkdir -p /etc/ceilometer \
+    && cp -r /ceilometer/etc/ceilometer/* /etc/ceilometer/ \
+    && chown -R ceilometer: /etc/ceilometer \
+    && sed -i 's|^exec_dirs.*|exec_dirs=/var/lib/kolla/venv/bin,/sbin,/usr/sbin,/bin,/usr/bin,/usr/local/bin,/usr/local/sbin|g' /etc/ceilometer/rootwrap.conf \
+    && if [ "$(ls /plugins)" ]; then \
+        {{ macros.install_pip(ceilometer_base_plugins_pip_packages) }}; \
+    fi
+
+{% endif %}
 
 COPY ceilometer_sudoers /etc/sudoers.d/kolla_ceilometer_sudoers
 COPY extend_start.sh /usr/local/bin/kolla_extend_start
 
-# NOTE(egonzalez): Remove ceilometer from constraint or will fail.
-RUN ln -s ceilometer-base-source/* ceilometer \
-    && {{ macros.upper_constraints_remove("ceilometer") }} \
-    && {{ macros.install_pip(ceilometer_base_pip_packages | customizable("pip_packages")) }} \
-    && mkdir -p /etc/ceilometer \
-    && cp -r /ceilometer/etc/ceilometer/* /etc/ceilometer/ \
-    && sed -i 's|^exec_dirs.*|exec_dirs=/var/lib/kolla/venv/bin,/sbin,/usr/sbin,/bin,/usr/bin,/usr/local/bin,/usr/local/sbin|g' /etc/ceilometer/rootwrap.conf \
-    && if [ "$(ls /plugins)" ]; then \
-        {{ macros.install_pip(ceilometer_base_plugins_pip_packages) }}; \
-    fi \
-    && chmod 750 /etc/sudoers.d \
+RUN chmod 750 /etc/sudoers.d \
     && chmod 440 /etc/sudoers.d/kolla_ceilometer_sudoers \
     && touch /usr/local/bin/kolla_ceilometer_extend_start \
-    && chmod 644 /usr/local/bin/kolla_extend_start /usr/local/bin/kolla_ceilometer_extend_start
+    && chmod 755 /usr/local/bin/kolla_extend_start /usr/local/bin/kolla_ceilometer_extend_start
 
 {% block ceilometer_base_footer %}{% endblock %}

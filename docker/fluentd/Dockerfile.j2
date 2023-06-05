@@ -1,59 +1,95 @@
 FROM {{ namespace }}/{{ image_prefix }}base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
-
-{% set fluentd_user = 'td-agent' %}
 
 {% block fluentd_header %}{% endblock %}
 
 {% import "macros.j2" as macros with context %}
 
-{{ macros.enable_extra_repos(['td-agent']) }}
-
 {% if base_package_type == 'rpm' %}
 
+    {{ macros.configure_user(name='fluentd', groups='mysql') }}
+# TODO:remove hostname package as it should be installed by the
+# fluentd dependencies.
+# hostname package is installed by default on CentOS/RHEL but not on
+# oraclelinux.
+
     {% set fluentd_packages = [
+        'fluentd',
         'gcc-c++',
+        'hostname',
         'make',
-        'td-agent',
+        'ruby-devel',
+        'rubygem-fluent-plugin-elasticsearch',
+        'rubygem-fluent-plugin-grok-parser',
+        'rubygem-fluent-plugin-rewrite-tag-filter',
+        'rubygem-fluent-plugin-secure-forward'
     ] %}
 
 {% elif base_package_type == 'deb' %}
-
+    {{ macros.configure_user(name='td-agent', groups='mysql') }}
     {% set fluentd_packages = [
         'g++',
         'make',
-        'td-agent',
+        'ruby',
+        'ruby-dev',
+        'td-agent'
     ] %}
 
 {% endif %}
 
-{{ macros.configure_user(name=fluentd_user, groups='mysql') }}
+{{ macros.install_packages(fluentd_packages | customizable("packages")) }}
 
+# Distro specific files and operations
+{% if base_package_type == 'rpm' %}
+COPY rpm_fluentd_sudoers /etc/sudoers.d/kolla_fluentd_sudoers
+RUN chmod 440 /etc/sudoers.d/kolla_fluentd_sudoers \
+    && mkdir -p /var/run/fluentd \
+    && chown -R fluentd: /etc/fluentd /var/run/fluentd
+{% elif base_package_type == 'deb' %}
 COPY fluentd_sudoers /etc/sudoers.d/kolla_fluentd_sudoers
-COPY extend_start.sh /usr/local/bin/kolla_extend_start
+RUN chmod 440 /etc/sudoers.d/kolla_fluentd_sudoers \
+    && sed -i -e "s/USER=td-agent/USER=root/" -e "s/GROUP=td-agent/GROUP=root/" /etc/init.d/td-agent \
+    && rm -f /etc/td-agent/td-agent.conf \
+    && chown -R td-agent: /etc/td-agent
+{% endif %}
 
-{{ macros.install_packages(fluentd_packages | customizable("packages")) }} \
-    && chmod 440 /etc/sudoers.d/kolla_fluentd_sudoers \
-    && mkdir -p /etc/{{ fluentd_user }} \
-    && mkdir -p /var/run/{{ fluentd_user }} \
-    && chown -R {{ fluentd_user }}: /var/run/{{ fluentd_user }} \
-    && chmod 644 /usr/local/bin/kolla_extend_start
+
+COPY extend_start.sh /usr/local/bin/kolla_extend_start
+RUN chmod 755 /usr/local/bin/kolla_extend_start
 
 {% block fluentd_plugins_install %}
 
-{% set fluentd_plugins = [
-    'fluent-plugin-grok-parser',
-    'fluent-plugin-prometheus',
-    'fluent-plugin-rewrite-tag-filter',
-] %}
+{% if base_package_type == 'deb' %}
+    {% set fluentd_plugins = [
+        'fluent-plugin-elasticsearch',
+        'fluent-plugin-grep',
+        'fluent-plugin-grok-parser:2.1.4',
+        'fluent-plugin-parser',
+        'fluent-plugin-rewrite-tag-filter:2.0.0',
+        'fluent-plugin-secure-forward',
+    ] %}
+{% endif %}
 
 {{ macros.install_fluent_plugins(fluentd_plugins | customizable("plugins")) }}
+
+# Build and install Fluentd output plugin for Monasca Log API
+ARG monasca_output_plugin_tag=0.1.2
+ARG monasca_output_plugin_url=https://github.com/monasca/fluentd-monasca/archive/$monasca_output_plugin_tag.tar.gz
+ADD $monasca_output_plugin_url /tmp/fluentd-monasca.tar.gz
+RUN tar -xvf /tmp/fluentd-monasca.tar.gz -C /tmp \
+    && cd /tmp/fluentd-monasca-* \
+    && gem build fluentd-monasca-output.gemspec \
+    && gem install fluentd-monasca-output-*.gem \
+    && {{ macros.install_fluent_plugins(['fluentd-monasca-output-*.gem'], chain=True) }} \
+    && rm -rf /tmp/fluentd*
 
 {% endblock %}
 
 {% block fluentd_footer %}{% endblock %}
 {% block footer %}{% endblock %}
 
-USER {{ fluentd_user }}
+{% if base_package_type == 'rpm' %}
+USER fluentd
+{% elif base_package_type == 'deb' %}
+USER td-agent
+{% endif %}

@@ -1,4 +1,0 @@
-re ^(${TFTPBOOT_PATH}/) ${TFTPBOOT_PATH}/\2
-re ^${TFTPBOOT_PATH}/ ${TFTPBOOT_PATH}/
-re ^(^/) ${TFTPBOOT_PATH}/\1
-re ^([^/]) ${TFTPBOOT_PATH}/\1

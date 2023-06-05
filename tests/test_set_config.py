@@ -11,23 +11,13 @@
 # limitations under the License.
 
 import copy
-import importlib.util
+import imp
 import json
+import mock
 import os.path
 import sys
-from unittest import mock
 
 from oslotest import base
-
-
-def load_module(name, path):
-    module_spec = importlib.util.spec_from_file_location(
-        name, path
-    )
-    module = importlib.util.module_from_spec(module_spec)
-    module_spec.loader.exec_module(module)
-    return module
-
 
 # nasty: to import set_config (not a part of the kolla package)
 this_dir = os.path.dirname(sys.modules[__name__].__file__)
@@ -35,7 +25,7 @@ set_configs_file = os.path.abspath(
     os.path.join(this_dir, '..',
                  'docker', 'base', 'set_configs.py'))
 
-set_configs = load_module('set_configs', set_configs_file)
+set_configs = imp.load_source('set_configs', set_configs_file)
 
 
 class LoadFromFile(base.BaseTestCase):
@@ -55,9 +45,26 @@ class LoadFromFile(base.BaseTestCase):
                 mock.call().__exit__(None, None, None),
                 mock.call('/run_command', 'w+'),
                 mock.call().__enter__(),
-                mock.call().write('/bin/true'),
+                mock.call().write(u'/bin/true'),
                 mock.call().__exit__(None, None, None)], mo.mock_calls)
 
+
+class LoadFromEnv(base.BaseTestCase):
+
+    def test_load_ok(self):
+        in_config = json.dumps({'command': '/bin/true',
+                                'config_files': {}})
+
+        mo = mock.mock_open()
+        with mock.patch.object(set_configs, 'open', mo):
+            with mock.patch.dict('os.environ', {'KOLLA_CONFIG': in_config}):
+                config = set_configs.load_config()
+                set_configs.copy_config(config)
+                self.assertEqual([mock.call('/run_command', 'w+'),
+                                  mock.call().__enter__(),
+                                  mock.call().write(u'/bin/true'),
+                                  mock.call().__exit__(None, None, None)],
+                                 mo.mock_calls)
 
 FAKE_CONFIG_FILES = [
     set_configs.ConfigFile(
@@ -321,26 +328,3 @@ class ConfigFileTest(base.BaseTestCase):
         mock_cmp_dir.assert_called_once_with(
             '/var/lib/kolla/config_files/bar', '/foo')
         mock_cmp_file.assert_not_called()
-
-    @mock.patch('grp.getgrgid', autospec=True)
-    @mock.patch('pwd.getpwuid', autospec=True)
-    @mock.patch('os.stat', autospec=True)
-    @mock.patch('builtins.open', new_callable=mock.mock_open)
-    @mock.patch('os.path.exists', autospec=True)
-    def test_cmp_file_opens_both_files_rb(self, mock_os_exists, mock_open,
-                                          mock_os_stat, mock_pwd_getpwuid,
-                                          mock_grp_getgrgid):
-        config_file = set_configs.ConfigFile(
-            '/var/lib/kolla/config_files/bar', '/foo', 'user1', '0644')
-
-        mock_os_exists.return_value = True
-        mock_os_stat.return_value.st_mode = int('0o100644', 8)
-        mock_pwd_getpwuid.return_value.pw_name = 'user1'
-        mock_grp_getgrgid.return_value.gr_name = 'user1'
-
-        self.assertIs(True,
-                      config_file._cmp_file('/fake/file1', '/fake/file2'))
-
-        self.assertEqual([mock.call('/fake/file1', 'rb'),
-                          mock.call('/fake/file2', 'rb')],
-                         mock_open.call_args_list)

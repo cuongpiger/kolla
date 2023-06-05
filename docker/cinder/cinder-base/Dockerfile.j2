@@ -1,7 +1,5 @@
 FROM {{ namespace }}/{{ image_prefix }}openstack-base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block cinder_base_header %}{% endblock %}
 
@@ -9,26 +7,64 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
 
 {{ macros.configure_user(name='cinder') }}
 
-{{ macros.enable_extra_repos(['ceph']) }}
+{% if install_type == 'binary' %}
+    {% if base_package_type == 'rpm' %}
+        {% set cinder_base_packages = [
+                'ceph-common',
+                'lvm2',
+                'cryptsetup',
+                'openstack-cinder'
+        ] %}
 
-{% if base_package_type == 'rpm' %}
-    {% set cinder_base_packages = [
-        'ceph-common',
-        'cryptsetup',
-        'lvm2',
-        'qemu-img'
-    ] %}
-{% elif base_package_type == 'deb' %}
-    {% set cinder_base_packages = [
-        'ceph-common',
-        'lvm2',
-        'cryptsetup',
-        'python3-cephfs',
-        'python3-rados',
-        'python3-rbd',
-        'qemu-utils'
-    ] %}
-{% endif %}
+        {% if distro_python_version.startswith('3') %}
+        {% set cinder_base_packages = cinder_base_packages + [
+                'python3-automaton',
+                'python3-oslo-vmware'
+        ] %}
+        {% else %}
+        {% set cinder_base_packages = cinder_base_packages + [
+                'python-automaton',
+                'python-oslo-vmware'
+        ] %}
+        {% endif %}
+    {% elif base_package_type == 'deb' %}
+        {% set cinder_base_packages = [
+                'ceph-common',
+                'cinder-common',
+                'lvm2',
+                'cryptsetup',
+                'python3-cephfs',
+                'python3-oslo.vmware',
+                'python3-rados',
+                'python3-rbd'
+        ] %}
+    {% endif %}
+{{ macros.install_packages(cinder_base_packages | customizable("packages")) }}
+
+{% elif install_type == 'source' %}
+    {% if base_package_type == 'rpm' %}
+        {% set cinder_base_packages = [
+                'ceph-common',
+                'lvm2',
+                'cryptsetup',
+        ] %}
+        {% if base_distro in ['centos', 'oraclelinux'] %}
+            {% set cinder_base_packages = cinder_base_packages + [
+                'qemu-img-ev'
+            ] %}
+        {% else %}
+            {% set cinder_base_packages = cinder_base_packages + [
+                 'qemu-img'
+            ] %}
+        {% endif %}
+    {% elif base_package_type == 'deb' %}
+        {% set cinder_base_packages = [
+                'ceph-common',
+                'lvm2',
+                'cryptsetup',
+                'qemu-utils'
+        ] %}
+    {% endif %}
 {{ macros.install_packages(cinder_base_packages | customizable("packages")) }}
 
 {% set cinder_base_pip_packages = [
@@ -36,18 +72,21 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
 ] %}
 
 ADD cinder-base-archive /cinder-base-source
-
-COPY cinder_sudoers /etc/sudoers.d/kolla_cinder_sudoers
-COPY extend_start.sh /usr/local/bin/kolla_extend_start
-
 RUN ln -s cinder-base-source/* cinder \
     && {{ macros.install_pip(cinder_base_pip_packages | customizable("pip_packages")) }} \
     && mkdir -p /etc/cinder \
     && cp -r /cinder/etc/cinder/* /etc/cinder/ \
-    && sed -i 's|^exec_dirs.*|exec_dirs=/var/lib/kolla/venv/bin,/sbin,/usr/sbin,/bin,/usr/bin,/usr/local/bin,/usr/local/sbin|g' /etc/cinder/rootwrap.conf \
-    && chmod 750 /etc/sudoers.d \
+    && chown -R cinder: /etc/cinder \
+    && sed -i 's|^exec_dirs.*|exec_dirs=/var/lib/kolla/venv/bin,/sbin,/usr/sbin,/bin,/usr/bin,/usr/local/bin,/usr/local/sbin|g' /etc/cinder/rootwrap.conf
+
+{% endif %}
+
+COPY cinder_sudoers /etc/sudoers.d/kolla_cinder_sudoers
+COPY extend_start.sh /usr/local/bin/kolla_extend_start
+
+RUN chmod 750 /etc/sudoers.d \
     && chmod 440 /etc/sudoers.d/kolla_cinder_sudoers \
     && touch /usr/local/bin/kolla_cinder_extend_start \
-    && chmod 644 /usr/local/bin/kolla_extend_start /usr/local/bin/kolla_cinder_extend_start
+    && chmod 755 /usr/local/bin/kolla_extend_start /usr/local/bin/kolla_cinder_extend_start
 
 {% block cinder_base_footer %}{% endblock %}

@@ -1,6 +1,0 @@
----
-upgrade:
-  - |
-    Support for Skydive images for aarch64 and ppc64le has been dropped.
-    Upstream builds own images for a wide selection of architectures. Binaries
-    are provided only for x86-64.

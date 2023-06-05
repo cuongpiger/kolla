@@ -1,11 +1,20 @@
 FROM {{ namespace }}/{{ image_prefix }}murano-base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block murano_engine_header %}{% endblock %}
 
 {% import "macros.j2" as macros with context %}
+
+{% if install_type == 'binary' %}
+    {% if base_package_type == 'rpm' %}
+       {% set murano_engine_packages = ['openstack-murano-engine'] %}
+    {% elif base_package_type == 'deb' %}
+        {% set murano_engine_packages = ['murano-engine'] %}
+    {% endif %}
+
+{{ macros.install_packages(murano_engine_packages | customizable("packages")) }}
+
+{% endif %}
 
 {% block murano_engine_footer %}{% endblock %}
 {% block footer %}{% endblock %}

@@ -1,14 +1,48 @@
 FROM {{ namespace }}/{{ image_prefix }}vitrage-base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block vitrage_api_header %}{% endblock %}
 
 {% import "macros.j2" as macros with context %}
 
+{% if install_type == 'binary' %}
+
+    {% if base_package_type == 'rpm' %}
+
+        {% set vitrage_api_packages = [
+            'httpd',
+            'mod_ssl',
+            'openstack-vitrage-api'
+        ] %}
+
+        {% if distro_python_version.startswith('3') %}
+        {% set vitrage_api_packages = vitrage_api_packages + [
+            'python3-ldappool',
+            'python3-mod_wsgi'
+        ] %}
+        {% else %}
+        {% set vitrage_api_packages = vitrage_api_packages + [
+            'mod_wsgi',
+            'python2-ldappool'
+        ] %}
+        {% endif %}
+
+{{ macros.install_packages(vitrage_api_packages | customizable("packages")) }}
+RUN sed -i -r 's,^(Listen 80),#\1,' /etc/httpd/conf/httpd.conf \
+    && sed -i -r 's,^(Listen 443),#\1,' /etc/httpd/conf.d/ssl.conf
+
+    {% elif base_package_type == 'deb' %}
+
+RUN echo '{{ install_type }} not yet available for {{ base_distro }}' \
+    && /bin/false
+
+    {% endif %}
+
+{% endif %}
+
+
 COPY extend_start.sh /usr/local/bin/kolla_vitrage_extend_start
-RUN chmod 644 /usr/local/bin/kolla_vitrage_extend_start
+RUN chmod 755 /usr/local/bin/kolla_vitrage_extend_start
 
 {% block vitrage_api_footer %}{% endblock %}
 {% block footer %}{% endblock %}

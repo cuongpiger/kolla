@@ -1,7 +1,5 @@
 FROM {{ namespace }}/{{ image_prefix }}nova-base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block nova_ssh_header %}{% endblock %}
 
@@ -13,13 +11,7 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
     'openssh-server'
 ] %}
 
-{% if base_package_type == 'rpm' %}
-
-# NOTE(mgoddard): The centos:8 image contains a /run/nologin file, which
-# prevents SSH access to it.
-RUN rm -f /run/nologin
-
-{% elif base_package_type == 'deb' %}
+{% if base_package_type == 'deb' %}
 
 RUN mkdir -p /var/run/sshd \
     && chmod 0755 /var/run/sshd
@@ -28,10 +20,10 @@ RUN mkdir -p /var/run/sshd \
 
 {{ macros.install_packages(nova_ssh_packages | customizable("packages")) }}
 
-COPY extend_start.sh /usr/local/bin/kolla_extend_start
+RUN sed -ri 's/session(\s+)required(\s+)pam_loginuid.so/session\1optional\2pam_loginuid.so/' /etc/pam.d/sshd
 
-RUN sed -ri 's/session(\s+)required(\s+)pam_loginuid.so/session\1optional\2pam_loginuid.so/' /etc/pam.d/sshd \
-    && chmod 644 /usr/local/bin/kolla_extend_start
+COPY extend_start.sh /usr/local/bin/kolla_extend_start
+RUN chmod 755 /usr/local/bin/kolla_extend_start
 
 {% block nova_ssh_footer %}{% endblock %}
 {% block footer %}{% endblock %}

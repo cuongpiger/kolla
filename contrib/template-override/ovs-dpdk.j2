@@ -4,7 +4,7 @@
 
 # install ovs from source
 
-{% if base_package_type == 'rpm' %}
+{% if base_distro in ['centos', 'oraclelinux', 'rhel'] %}
     {% set ovs_dpdk_packages = [
         'kernel-devel-$(uname -r)',
         'redhat-lsb-core',
@@ -17,12 +17,12 @@
         'autoconf',
         'automake',
         'libpcap-devel',
-        'python3-devel',
-        'python3-six',
+        'python-devel',
+        'python-six',
         'crudini'
      ] %}
 
-{% elif base_package_type == 'deb' %}
+{% elif base_distro in [ 'debian', 'ubuntu' ] %}
 
     {% set ovs_dpdk_packages = [
         'linux-headers-$(uname -r)',
@@ -37,8 +37,8 @@
         'make',
         'build-essential',
         'libpcap-dev',
-        'python3-dev',
-        'python3-six',
+        'python-dev',
+        'python-six',
         'crudini'
     ] %}
 
@@ -46,7 +46,7 @@
 
 {{ macros.install_packages(ovs_dpdk_packages | customizable("packages")) }}
 
-{% if base_package_type == 'rpm' %}
+{% if base_distro in ['centos', 'oraclelinux', 'rhel'] %}
 RUN mkdir -p /lib/modules/$(uname -r) \
     && ln -s /usr/src/kernels/$(uname -r) /lib/modules/$(uname -r)/build
 {% endif %}

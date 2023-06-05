@@ -6,8 +6,6 @@
 # anyone in the kolla group may sudo -E (set the environment)
 Defaults: %kolla setenv
 
-Defaults secure_path="/var/lib/kolla/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-
 # root may run any commands via sudo as the network seervice user.  This is
 # neededfor database migrations of existing services which have not been
 # converted to run as a non-root user, but instead do that via sudo -E glance
@@ -16,8 +14,5 @@ root ALL=(ALL) ALL
 # anyone in the kolla group may run /usr/local/bin/kolla_set_configs as the
 # root user via sudo without password confirmation
 %kolla ALL=(root) NOPASSWD: /usr/local/bin/kolla_set_configs
-
-# Copy custom CA certificates to containers
-%kolla ALL=(root) NOPASSWD: /usr/local/bin/kolla_copy_cacerts
 
 #includedir /etc/sudoers.d

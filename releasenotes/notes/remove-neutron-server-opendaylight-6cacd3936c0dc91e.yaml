@@ -1,4 +1,0 @@
----
-upgrade:
-  - |
-    The ``neutron-server-opendaylight`` image has been removed.

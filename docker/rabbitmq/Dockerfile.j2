@@ -1,7 +1,5 @@
 FROM {{ namespace }}/{{ image_prefix }}base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block rabbitmq_header %}{% endblock %}
 
@@ -9,21 +7,42 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
 
 {{ macros.configure_user(name='rabbitmq') }}
 
-{{ macros.enable_extra_repos(['crb', 'erlang', 'rabbitmq']) }}
-
 {% block rabbitmq_install %}
 {% if base_package_type == 'rpm' %}
-
+# NOTE(mandre) Remove rabbitmq-server pinning once package dependencies are met
+# https://bugs.launchpad.net/kolla/+bug/1814233
     {% set rabbitmq_packages = [
-        'erlang-25.*',
-        'rabbitmq-server-3.11.*'
+        'erlang-hipe',
+        'hostname',
+        'rabbitmq-server-3.7.10'
     ] %}
 
 {% elif base_package_type == 'deb' %}
     {% set rabbitmq_packages = [
-        'logrotate',
-        'rabbitmq-server',
+        'erlang-nox',
+        'logrotate'
     ] %}
+
+    {% if base_distro == 'debian' %}
+         {% set rabbitmq_packages = rabbitmq_packages + [
+             'rabbitmq-server',
+         ] %}
+    {% else %}
+         {% set rabbitmq_packages = rabbitmq_packages + [
+             'rabbitmq-server=3.7.10-1',
+         ] %}
+    {% endif %}
+
+    {% if base_arch == 'aarch64' %}
+         {% set rabbitmq_packages = rabbitmq_packages + [
+             'erlang-base',
+         ] %}
+    {% else %}
+         {% set rabbitmq_packages = rabbitmq_packages + [
+             'erlang-base-hipe',
+         ] %}
+
+    {% endif %}
 
 {% endif %}
 
@@ -36,22 +55,23 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
 RUN rm -rf /var/lib/rabbitmq/* \
     && mkdir -p /usr/lib/rabbitmq/plugins \
     && /usr/lib/rabbitmq/bin/rabbitmq-plugins enable --offline \
-       rabbitmq_management \
-       rabbitmq_prometheus
+       rabbitmq_management
 
+
+    {% set rabbitmq_plugins = [
+        'accept-0.3.3.ez',
+        'prometheus-3.5.1.ez',
+        'prometheus_cowboy-0.1.4.ez',
+        'prometheus_httpd-2.1.8.ez',
+        'prometheus_rabbitmq_exporter-3.7.2.4.ez'
+    ] %}
+
+{{ macros.install_rabbitmq_plugins(rabbitmq_plugins | customizable("plugins"), version="v3.7.2.4") }}
 {% endblock %}
-
-{% if docker_healthchecks %}
-{% block healthcheck_installation %}
-
-COPY healthcheck_rabbitmq /usr/local/bin/healthcheck_rabbitmq
-RUN chmod 755 /usr/local/bin/healthcheck_rabbitmq
-
-{% endblock %}
-{% endif %}
 
 COPY extend_start.sh /usr/local/bin/kolla_extend_start
-RUN chmod 644 /usr/local/bin/kolla_extend_start
+COPY rabbitmq_get_gospel_node.py /usr/local/bin/rabbitmq_get_gospel_node
+RUN chmod 755 /usr/local/bin/kolla_extend_start /usr/local/bin/rabbitmq_get_gospel_node
 
 {% block rabbitmq_footer %}{% endblock %}
 {% block footer %}{% endblock %}

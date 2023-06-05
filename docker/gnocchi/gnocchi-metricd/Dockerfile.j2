@@ -1,11 +1,14 @@
 FROM {{ namespace }}/{{ image_prefix }}gnocchi-base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block gnocchi_metricd_header %}{% endblock %}
 
 {% import "macros.j2" as macros with context %}
+
+{% if install_type == 'binary' %}
+    {% set gnocchi_metricd_packages = ['gnocchi-metricd'] %}
+{{ macros.install_packages(gnocchi_metricd_packages | customizable("packages")) }}
+{% endif %}
 
 {% block gnocchi_metricd_footer %}{% endblock %}
 {% block footer %}{% endblock %}

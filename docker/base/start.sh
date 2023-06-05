@@ -1,8 +1,5 @@
 #!/bin/bash
-
 set -o errexit
-set -o pipefail
-set -o nounset
 set -o xtrace
 
 # Processing /var/lib/kolla/config_files/config.json as root.  This is necessary
@@ -11,9 +8,6 @@ set -o xtrace
 sudo -E kolla_set_configs
 CMD=$(cat /run_command)
 ARGS=""
-
-# Install/remove custom CA certificates
-sudo kolla_copy_cacerts
 
 if [[ ! "${!KOLLA_SKIP_EXTEND_START[@]}" ]]; then
     # Run additional commands if present

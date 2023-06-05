@@ -1,30 +1,35 @@
 FROM {{ namespace }}/{{ image_prefix }}prometheus-base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block prometheus_cadvisor_header %}{% endblock %}
 
 {% import "macros.j2" as macros with context %}
 
 {% block prometheus_cadvisor_repository_version %}
-ARG prometheus_cadvisor_version=0.45.0
-{% if debian_arch == 'arm64' %}
-ARG prometheus_cadvisor_sha256sum=bd6dad982c5950d6071ec2e1f9d474102ef3a00451395c58da9398297d35b174
-{% else %}
-ARG prometheus_cadvisor_sha256sum=9a2a0b69f58d932855c0af23b847cb9de8f8c32264f66f9fb5dcc8f359f34ccd
-{% endif %}
-ARG prometheus_cadvisor_url=https://github.com/google/cadvisor/releases/download/v${prometheus_cadvisor_version}/cadvisor-v${prometheus_cadvisor_version}-linux-{{debian_arch}}
+ENV prometheus_cadvisor_version=0.32.0
 {% endblock %}
 
+{% if base_arch in ['x86_64'] %}
 
 {% block prometheus_cadvisor_install %}
-RUN curl -o /tmp/cadvisor ${prometheus_cadvisor_url} \
-    && echo "${prometheus_cadvisor_sha256sum} /tmp/cadvisor" | sha256sum -c \
-    && mv /tmp/cadvisor /opt \
-    && chmod 0755 /opt/cadvisor
+RUN curl -ssL -o /opt/cadvisor https://github.com/google/cadvisor/releases/download/v${prometheus_cadvisor_version}/cadvisor && chmod 0755 /opt/cadvisor
 {% endblock %}
 
+{% else %}
+
+   {% if base_distro in ['debian'] %}
+
+        {% set cadvisor_packages = [
+             'libjs-bootstrap',
+             'libjs-jquery',
+             'https://snapshot.debian.org/archive/debian/20180503T060640Z/pool/main/c/cadvisor/cadvisor_0.27.1+dfsg2-1_arm64.deb'
+        ] %}
+
+{{ macros.install_packages(cadvisor_packages | customizable("packages")) }}
+RUN ln -s /usr/bin/cadvisor /opt/cadvisor
+   {% endif %}
+
+{% endif %}
 
 {% block prometheus_cadvisor_footer %}{% endblock %}
 {% block footer %}{% endblock %}

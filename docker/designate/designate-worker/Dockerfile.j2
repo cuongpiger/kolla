@@ -1,21 +1,33 @@
 FROM {{ namespace }}/{{ image_prefix }}designate-base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block designate_worker_header %}{% endblock %}
 
 {% import "macros.j2" as macros with context %}
 
 # The bind9 package here is only to provide the rndc binary.
-{% if base_package_type == 'rpm' %}
-    {% set designate_worker_packages = [
-        'bind'
-    ] %}
-{% elif base_package_type == 'deb' %}
-    {% set designate_worker_packages = [
-        'bind9'
-    ] %}
+{% if install_type == 'binary' %}
+    {% if base_package_type == 'rpm' %}
+       {% set designate_worker_packages = [
+            'bind',
+            'openstack-designate-worker'
+        ] %}
+    {% elif base_package_type == 'deb' %}
+       {% set designate_worker_packages = [
+            'bind9',
+            'designate-worker'
+        ] %}
+    {% endif %}
+{% elif install_type == 'source' %}
+    {% if base_package_type == 'rpm' %}
+       {% set designate_worker_packages = [
+            'bind'
+        ] %}
+    {% elif base_package_type == 'deb' %}
+       {% set designate_worker_packages = [
+            'bind9'
+        ] %}
+    {% endif %}
 {% endif %}
 {{ macros.install_packages(designate_worker_packages | customizable("packages")) }}
 

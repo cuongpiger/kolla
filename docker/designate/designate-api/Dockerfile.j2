@@ -1,11 +1,18 @@
 FROM {{ namespace }}/{{ image_prefix }}designate-base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block designate_api_header %}{% endblock %}
 
 {% import "macros.j2" as macros with context %}
+
+{% if install_type == 'binary' %}
+    {% if base_package_type == 'rpm' %}
+       {% set designate_api_packages = ['openstack-designate-api'] %}
+    {% elif base_package_type == 'deb' %}
+       {% set designate_api_packages = ['designate-api'] %}
+    {% endif %}
+{{ macros.install_packages(designate_api_packages | customizable("packages")) }}
+{% endif %}
 
 {% block designate_api_footer %}{% endblock %}
 {% block footer %}{% endblock %}

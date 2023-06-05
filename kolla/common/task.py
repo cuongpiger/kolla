@@ -12,14 +12,16 @@
 
 import abc
 
+import six
 
-class Task(object, metaclass=abc.ABCMeta):
+
+@six.add_metaclass(abc.ABCMeta)
+class Task(object):
 
     def __init__(self):
         self.success = False
 
-    @property
-    @abc.abstractmethod
+    @abc.abstractproperty
     def name(self):
         pass
 

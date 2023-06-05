@@ -1,11 +1,18 @@
 FROM {{ namespace }}/{{ image_prefix }}watcher-base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block watcher_applier_header %}{% endblock %}
 
 {% import "macros.j2" as macros with context %}
+
+{% if install_type == 'binary' %}
+    {% if base_package_type == 'rpm' %}
+        {% set watcher_applier_packages = ['openstack-watcher-applier'] %}
+    {% elif base_package_type == 'deb' %}
+        {% set watcher_applier_packages = ['watcher-applier'] %}
+    {% endif %}
+{{ macros.install_packages(watcher_applier_packages | customizable("packages")) }}
+{% endif %}
 
 {% block watcher_applier_footer %}{% endblock %}
 {% block footer %}{% endblock %}

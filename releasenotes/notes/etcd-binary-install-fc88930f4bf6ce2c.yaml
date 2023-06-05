@@ -1,6 +1,0 @@
----
-upgrade:
-  - |
-    ``etcd`` is now installed from the upstream binaries published to github
-    rather than via the OS package manager. This aligns the etcd version across
-    all distributions for compatibility.

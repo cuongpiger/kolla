@@ -1,20 +1,16 @@
 FROM {{ namespace }}/{{ image_prefix }}glance-base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block glance_api_header %}{% endblock %}
 
 {% import "macros.j2" as macros with context %}
 
-{% if base_package_type == 'rpm' %}
-    {% set glance_api_packages = [
-        'device-mapper-multipath',
-        'qemu-img'
-    ] %}
+{% if base_distro in ['centos', 'oraclelinux'] %}
+    {% set glance_api_packages = ['nfs-utils', 'qemu-img-ev'] %}
+{% elif base_distro == 'rhel' %}
+    {% set glance_api_packages = ['nfs-utils', 'qemu-img'] %}
 {% elif base_package_type == 'deb' %}
     {% set glance_api_packages = [
-        'multipath-tools',
         'nfs-common',
         'qemu-utils'
     ] %}
@@ -23,7 +19,7 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
 {{ macros.install_packages(glance_api_packages | customizable("packages")) }}
 
 COPY extend_start.sh /usr/local/bin/kolla_glance_extend_start
-RUN chmod 644 /usr/local/bin/kolla_glance_extend_start
+RUN chmod 755 /usr/local/bin/kolla_glance_extend_start
 
 {% block glance_api_footer %}{% endblock %}
 {% block footer %}{% endblock %}

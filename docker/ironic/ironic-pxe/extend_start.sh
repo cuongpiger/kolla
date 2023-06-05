@@ -1,72 +1,52 @@
 #!/bin/bash
 
 
-# For x86 legacy BIOS boot mode
-function prepare_pxe_pxelinux {
-    if [[ "${KOLLA_BASE_DISTRO}" =~ debian|ubuntu ]]; then
-        cp /usr/lib/PXELINUX/pxelinux.0 \
-           /usr/lib/syslinux/modules/bios/{chain.c32,ldlinux.c32} \
-           ${TFTPBOOT_PATH}/
-    elif [[ "${KOLLA_BASE_DISTRO}" =~ centos|rocky ]]; then
-        if [[ "${TFTPBOOT_PATH}" != /tftpboot ]]; then
-            cp /tftpboot/{pxelinux.0,chain.c32,ldlinux.c32} \
-               ${TFTPBOOT_PATH}/
+function prepare_pxe {
+    chown -R ironic: /tftpboot
+    for pxe_file in /var/lib/tftpboot/pxelinux.0 /var/lib/tftpboot/chain.c32 /usr/lib/syslinux/pxelinux.0 \
+                    /usr/lib/syslinux/chain.c32 /usr/lib/PXELINUX/pxelinux.0 \
+                    /usr/lib/syslinux/modules/bios/chain.c32 /usr/lib/syslinux/modules/bios/ldlinux.c32; do
+        if [[ -e "$pxe_file" ]]; then
+            cp "$pxe_file" /tftpboot
         fi
-    fi
-}
-
-# For UEFI boot mode
-function prepare_pxe_grub {
-    if [[ "${KOLLA_BASE_DISTRO}" =~ debian|ubuntu  ]]; then
-        shim_src_file="/usr/lib/shim/shim*64.efi.signed"
-        grub_src_file="/usr/lib/grub/*-efi-signed/grubnet*64.efi.signed"
-    elif [[ "${KOLLA_BASE_DISTRO}" =~ centos|rocky ]]; then
-        shim_src_file="/boot/efi/EFI/${KOLLA_BASE_DISTRO}/shim*64.efi"
-        grub_src_file="/boot/efi/EFI/${KOLLA_BASE_DISTRO}/grub*64.efi"
-    fi
-
-    if [[ "${KOLLA_BASE_ARCH}" == "x86_64" ]]; then
-        shim_dst_file="bootx64.efi"
-        grub_dst_file="grubx64.efi"
-    elif [[ "${KOLLA_BASE_ARCH}" == "aarch64" ]]; then
-        shim_dst_file="bootaa64.efi"
-        grub_dst_file="grubaa64.efi"
-    fi
-
-    cp $shim_src_file ${TFTPBOOT_PATH}/$shim_dst_file
-    cp $grub_src_file ${TFTPBOOT_PATH}/$grub_dst_file
+    done
 }
 
 function prepare_ipxe {
-    # NOTE(mgoddard): Ironic uses snponly.efi as the default for
-    # uefi_ipxe_bootfile_name since Xena. In Wallaby and earlier releases it
-    # was ipxe.efi. Ensure that both exist, using symlinks where the files are
-    # named differently to allow the original names to be used in ironic.conf.
     if [[ "${KOLLA_BASE_DISTRO}" =~ debian|ubuntu ]]; then
-        cp /usr/lib/ipxe/{undionly.kpxe,ipxe.efi,snponly.efi} ${TFTPBOOT_PATH}/
-    elif [[ "${KOLLA_BASE_DISTRO}" =~ centos|rocky ]]; then
-        cp /usr/share/ipxe/{undionly.kpxe,ipxe*.efi} ${TFTPBOOT_PATH}/
-        if [[ ! -e ${TFTPBOOT_PATH}/ipxe.efi ]]; then
-            ln -s ${TFTPBOOT_PATH}/ipxe-${KOLLA_BASE_ARCH}.efi ${TFTPBOOT_PATH}/ipxe.efi
-        fi
-        if [[ ! -e ${TFTPBOOT_PATH}/snponly.efi ]]; then
-            ln -s ${TFTPBOOT_PATH}/ipxe-snponly-${KOLLA_BASE_ARCH}.efi ${TFTPBOOT_PATH}/snponly.efi
-        fi
+        cp /usr/lib/ipxe/{undionly.kpxe,ipxe.efi} /tftpboot
+    elif [[ "${KOLLA_BASE_DISTRO}" =~ centos|oraclelinux|rhel ]]; then
+        cp /usr/share/ipxe/{undionly.kpxe,ipxe.efi} /tftpboot
     fi
 }
 
 # Bootstrap and exit if KOLLA_BOOTSTRAP variable is set. This catches all cases
 # of the KOLLA_BOOTSTRAP variable being set, including empty.
 if [[ "${!KOLLA_BOOTSTRAP[@]}" ]]; then
-    mkdir -p ${TFTPBOOT_PATH} ${HTTPBOOT_PATH}
-    chown ironic: ${TFTPBOOT_PATH} ${HTTPBOOT_PATH}
-    prepare_pxe_pxelinux
-    prepare_pxe_grub
+    prepare_pxe
     prepare_ipxe
     exit 0
 fi
 
-# Template out a TFTP map file, using the TFTPBOOT_PATH variable.
-envsubst < /map-file-template > /map-file
+if [[ "${ironic_arch}" =~ aarch64 ]]; then
+    modules="boot chain configfile efinet ext2 fat gettext help hfsplus loadenv \
+    lsefi normal part_gpt part_msdos read search search_fs_file search_fs_uuid \
+    search_label terminal terminfo tftp linux"
 
-. /usr/local/bin/kolla_httpd_setup
+    if [[ "${KOLLA_BASE_DISTRO}" =~ debian|ubuntu ]]; then
+        grub-mkimage -v -o /tftpboot/grubaa64.efi -O arm64-efi -p "grub" $modules
+    elif [[ "${KOLLA_BASE_DISTRO}" =~ centos|oraclelinux|rhel ]]; then
+        grub2-mkimage -v -o /tftpboot/grubaa64.efi -O arm64-efi -p "EFI/centos" $modules
+    fi
+fi
+
+# NOTE(pbourke): httpd will not clean up after itself in some cases which
+# results in the container not being able to restart. (bug #1489676, 1557036)
+if [[ "${KOLLA_BASE_DISTRO}" =~ debian|ubuntu ]]; then
+    # Loading Apache2 ENV variables
+    . /etc/apache2/envvars
+    install -d /var/run/apache2/
+    rm -rf /var/run/apache2/*
+else
+    rm -rf /var/run/httpd/* /run/httpd/* /tmp/httpd*
+fi

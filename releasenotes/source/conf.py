@@ -45,8 +45,8 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = 'Kolla Release Notes'
-copyright = '2015, Kolla developers'
+project = u'Kolla Release Notes'
+copyright = u'2015, Kolla developers'
 
 # Release notes are version independent.
 # The short X.Y version.
@@ -84,7 +84,7 @@ exclude_patterns = []
 # show_authors = False
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = 'native'
+pygments_style = 'sphinx'
 
 # A list of ignored prefixes for module index sorting.
 # modindex_common_prefix = []
@@ -110,6 +110,9 @@ html_theme = 'openstackdocs'
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
 # html_title = None
+
+# Must set this variable to include year, month, day, hours, and minutes.
+html_last_updated_fmt = '%Y-%m-%d %H:%M'
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
 # html_short_title = None
@@ -184,8 +187,8 @@ htmlhelp_basename = 'KollaReleaseNotesdoc'
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    ('index', 'KollaReleaseNotes.tex', 'Kolla Release Notes Documentation',
-     'Kolla developers', 'manual'),
+    ('index', 'KollaReleaseNotes.tex', u'Kolla Release Notes Documentation',
+     u'Kolla developers', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -214,8 +217,8 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'kollareleasenotes', 'Kolla Release Notes Documentation',
-     ['Kolla developers'], 1)
+    ('index', 'kollareleasenotes', u'Kolla Release Notes Documentation',
+     [u'Kolla developers'], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -228,8 +231,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    ('index', 'KollaReleaseNotes', 'Kolla Release Notes Documentation',
-     'Kolla developers', 'KollaReleaseNotes',
+    ('index', 'KollaReleaseNotes', u'Kolla Release Notes Documentation',
+     u'Kolla developers', 'KollaReleaseNotes',
      'One line description of project.', 'Miscellaneous'),
 ]
 
@@ -249,7 +252,6 @@ texinfo_documents = [
 locale_dirs = ['locale/']
 
 # openstackdocstheme options
-openstackdocs_repo_name = 'openstack/kolla'
-openstackdocs_bug_project = 'kolla'
-openstackdocs_bug_tag = ''
-openstackdocs_auto_name = False
+repository_name = 'openstack/kolla'
+bug_project = 'kolla'
+bug_tag = ''

@@ -1,4 +1,0 @@
----
-other:
-  - |
-    Removes ``pymongo`` installation from images.

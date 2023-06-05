@@ -1,0 +1,69 @@
+FROM {{ namespace }}/{{ image_prefix }}neutron-server:{{ tag }}
+LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
+
+USER root
+
+{% block neutron_server_opendaylight_header %}{% endblock %}
+
+{% import "macros.j2" as macros with context %}
+
+{% if install_type == 'binary' %}
+    {% if base_package_type == 'rpm' %}
+        {% if distro_python_version.startswith('3') %}
+        {% set neutron_server_opendaylight_packages = [
+            'python3-networking-bgpvpn',
+            'python3-networking-bgpvpn-heat',
+            'python3-networking-l2gw',
+            'python3-networking-odl'
+        ] %}
+        {% else %}
+        {% set neutron_server_opendaylight_packages = [
+            'python-networking-bgpvpn',
+            'python-networking-bgpvpn-heat',
+            'python-networking-l2gw',
+            'python-networking-odl'
+        ] %}
+        {% endif %}
+    {% elif base_package_type == 'deb' %}
+        {% set neutron_server_opendaylight_packages = [
+            'python3-networking-bgpvpn',
+            'python3-networking-l2gw',
+            'python3-networking-odl'
+        ] %}
+    {% endif %}
+
+{{ macros.install_packages(neutron_server_opendaylight_packages | customizable("packages")) }}
+
+{% elif install_type == 'source' %}
+
+    {% if base_arch not in ['x86_64'] %}
+        {% if base_package_type == 'rpm' %}
+            {% set neutron_server_opendaylight_packages = [
+                'libjpeg-devel'
+            ] %}
+        {% elif base_package_type == 'deb' %}
+            {% set neutron_server_opendaylight_packages = [
+                'libjpeg-dev'
+            ] %}
+        {% endif %}
+
+{{ macros.install_packages(neutron_server_opendaylight_packages | customizable("packages")) }}
+    {% endif %}
+
+ADD plugins-archive /
+
+{% set neutron_server_opendaylight_plugins_pip_packages = [
+    '/plugins/*'
+] %}
+
+RUN if [ "$(ls /plugins)" ]; then \
+        sed -i 's|^ceilometer===.*$||g' requirements/upper-constraints.txt \
+        && {{ macros.install_pip(neutron_server_opendaylight_plugins_pip_packages) }}; \
+    fi
+
+{% endif %}
+
+{% block neutron_server_opendaylight_footer %}{% endblock %}
+{% block footer %}{% endblock %}
+
+USER neutron

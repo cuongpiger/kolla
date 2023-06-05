@@ -21,33 +21,19 @@ def make_a_logger(conf=None, image_name=None):
         log = logging.getLogger(".".join([__name__, image_name]))
     else:
         log = logging.getLogger(__name__)
-
-    if conf is not None and conf.debug:
-        loglevel = logging.DEBUG
-    else:
-        loglevel = logging.INFO
-
     if not log.handlers:
-        stream_handler = logging.StreamHandler(sys.stderr)
-        stream_handler.setFormatter(logging.Formatter(logging.BASIC_FORMAT))
-        # NOTE(hrw): quiet mode matters only on console
-        if conf is not None and conf.quiet:
-            stream_handler.setLevel(logging.CRITICAL)
+        if conf is None or not conf.logs_dir or not image_name:
+            handler = logging.StreamHandler(sys.stderr)
+            log.propagate = False
         else:
-            stream_handler.setLevel(loglevel)
-        log.addHandler(stream_handler)
-        log.propagate = False
-
-        if conf is not None and conf.logs_dir and image_name:
             filename = os.path.join(conf.logs_dir, "%s.log" % image_name)
             handler = logging.FileHandler(filename, delay=True)
-            # NOTE(hrw): logfile will be INFO or DEBUG
-            handler.setLevel(loglevel)
-            handler.setFormatter(logging.Formatter(logging.BASIC_FORMAT))
-            log.addHandler(handler)
-
-    # NOTE(hrw): needs to be high, handlers have own levels
-    log.setLevel(logging.DEBUG)
+        handler.setFormatter(logging.Formatter(logging.BASIC_FORMAT))
+        log.addHandler(handler)
+    if conf is not None and conf.debug:
+        log.setLevel(logging.DEBUG)
+    else:
+        log.setLevel(logging.INFO)
     return log
 
 
@@ -59,7 +45,7 @@ def get_docker_squash_version():
     try:
         stdout = subprocess.check_output(  # nosec
             ['docker-squash', '--version'], stderr=subprocess.STDOUT)
-        return str(stdout.split()[0], 'utf-8')
+        return stdout.split()[0]
     except OSError as ex:
         if ex.errno == 2:
             LOG.error(('"docker-squash" command is not found.'

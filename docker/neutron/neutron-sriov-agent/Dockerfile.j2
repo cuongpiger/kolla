@@ -1,11 +1,25 @@
 FROM {{ namespace }}/{{ image_prefix }}neutron-base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block neutron_sriov_agent_header %}{% endblock %}
 
 {% import "macros.j2" as macros with context %}
+
+{% if install_type == 'binary' %}
+    {% if base_package_type == 'rpm' %}
+
+        {% set neutron_sriov_agent_packages = [
+            'openstack-neutron-sriov-nic-agent'
+        ] %}
+
+    {% elif base_package_type == 'deb' %}
+
+        {% set neutron_sriov_agent_packages = [
+            'neutron-sriov-agent'
+        ] %}
+
+    {% endif %}
+{% endif %}
 
 {{ macros.install_packages(neutron_sriov_agent_packages | customizable("packages")) }}
 

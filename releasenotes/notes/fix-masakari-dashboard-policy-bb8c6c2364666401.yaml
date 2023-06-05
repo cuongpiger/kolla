@@ -1,5 +1,0 @@
----
-fixes:
-  - |
-    Fixes an issue with the Masakari dashboard where policies were not loaded
-    correctly.

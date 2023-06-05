@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@ parser.add_argument('-b', '--base',
                     required=True)
 args = vars(parser.parse_args())
 
-if args['base'] not in ['centos']:
+if args['base'] not in ['centos', 'rhel', 'oraclelinux']:
     print("Non rpm-based distros are not yet supported.")
     sys.exit()
 
@@ -70,7 +70,7 @@ move_to_base_candidates = [
     pkg for pkg in pkg_installs if len(pkg_installs[pkg]) > 10
     and not ('base' in pkg_installs[pkg]
              or 'openstack-base' in pkg_installs[pkg])
-]
+    ]
 
 if move_to_base_candidates:
     print("Consider moving the following packages to a base image:")

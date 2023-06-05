@@ -1,15 +1,11 @@
 FROM {{ namespace }}/{{ image_prefix }}base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block telegraf_header %}{% endblock %}
 
 {% import "macros.j2" as macros with context %}
 
 {{ macros.configure_user(name='telegraf', homedir='/etc/telegraf') }}
-
-{{ macros.enable_extra_repos(['influxdb', 'opstools']) }}
 
 {% set telegraf_packages = [
     'chrony',
@@ -19,11 +15,21 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
 
 {% if base_package_type == 'rpm' %}
     {% set telegraf_packages = telegraf_packages + [
-        'collectd',
+        'collectd'
     ] %}
+    {% if distro_python_version.startswith('3') %}
+    {% set telegraf_packages = telegraf_packages + [
+        'python3-pip'
+    ] %}
+    {% else %}
+    {% set telegraf_packages = telegraf_packages + [
+        'python2-pip'
+    ] %}
+    {% endif %}
 {% elif base_package_type == 'deb' %}
     {% set telegraf_packages = telegraf_packages + [
         'collectd-core',
+        'python3-pip'
     ] %}
 {% endif %}
 
@@ -34,7 +40,7 @@ COPY extend_start.sh /usr/local/bin/kolla_extend_start
 
 RUN chmod 750 /etc/sudoers.d \
     && chmod 440 /etc/sudoers.d/kolla_telegraf_sudoers \
-    && chmod 644 /usr/local/bin/kolla_extend_start
+    && chmod 755 /usr/local/bin/kolla_extend_start
 
 {% block telegraf_footer %}{% endblock %}
 {% block footer %}{% endblock %}

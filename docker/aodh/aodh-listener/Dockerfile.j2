@@ -1,12 +1,19 @@
 FROM {{ namespace }}/{{ image_prefix }}aodh-base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block aodh_listener_header %}{% endblock %}
 
 {% import "macros.j2" as macros with context %}
 
+{% if install_type == 'binary' %}
+    {% if base_package_type == 'rpm' %}
+       {% set aodh_listener_packages = ['openstack-aodh-listener'] %}
+    {% elif base_package_type == 'deb' %}
+        {% set aodh_listener_packages = ['aodh-listener'] %}
+    {% endif %}
+{{ macros.install_packages(aodh_listener_packages | customizable("packages")) }}
+
+{% endif %}
 {% block aodh_listener_footer %}{% endblock %}
 {% block footer %}{% endblock %}
 

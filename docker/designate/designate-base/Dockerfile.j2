@@ -1,7 +1,5 @@
 FROM {{ namespace }}/{{ image_prefix }}openstack-base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block designate_base_header %}{% endblock %}
 
@@ -9,24 +7,58 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
 
 {{ macros.configure_user(name='designate') }}
 
+{% if install_type == 'binary' %}
+    {% if base_package_type == 'rpm' %}
+       {% set designate_base_packages = [
+            'openstack-designate-common'
+        ] %}
+
+        {% if distro_python_version.startswith('3') %}
+        {% set designate_base_packages = designate_base_packages + [
+            'python3-oslo-reports',
+            'python3-suds',
+            'python3-tooz'
+        ] %}
+        {% else %}
+        {% set designate_base_packages = designate_base_packages + [
+            'python-tooz',
+            'python2-oslo-reports',
+            'python2-suds'
+        ] %}
+        {% endif %}
+
+{{ macros.install_packages(designate_base_packages | customizable("packages")) }}
+    {% elif base_package_type == 'deb' %}
+       {% set designate_base_packages = [
+            'designate-common',
+            'python3-tooz'
+        ] %}
+
+{{ macros.install_packages(designate_base_packages | customizable("packages")) }}
+
+    {% endif %}
+{% elif install_type == 'source' %}
+
 {% set designate_base_pip_packages = [
     '/designate'
 ] %}
 
 ADD designate-base-archive /designate-base-source
-
-COPY designate_sudoers /etc/sudoers.d/kolla_designate_sudoers
-COPY extend_start.sh /usr/local/bin/kolla_extend_start
-
 RUN ln -s designate-base-source/* designate \
     && {{ macros.install_pip(designate_base_pip_packages | customizable("pip_packages")) }} \
     && mkdir -p /etc/designate \
     && cp -r /designate/etc/designate/* /etc/designate/ \
     && mv /etc/designate/rootwrap.conf.sample /etc/designate/rootwrap.conf \
-    && sed -i 's|^exec_dirs.*|exec_dirs=/var/lib/kolla/venv/bin,/sbin,/usr/sbin,/bin,/usr/bin,/usr/local/bin,/usr/local/sbin|g' /etc/designate/rootwrap.conf \
-    && chmod 750 /etc/sudoers.d \
+    && chown -R designate: /etc/designate \
+    && sed -i 's|^exec_dirs.*|exec_dirs=/var/lib/kolla/venv/bin,/sbin,/usr/sbin,/bin,/usr/bin,/usr/local/bin,/usr/local/sbin|g' /etc/designate/rootwrap.conf
+{% endif %}
+
+COPY designate_sudoers /etc/sudoers.d/kolla_designate_sudoers
+COPY extend_start.sh /usr/local/bin/kolla_extend_start
+
+RUN chmod 750 /etc/sudoers.d \
     && chmod 640 /etc/sudoers.d/kolla_designate_sudoers \
     && touch /usr/local/bin/kolla_designate_extend_start \
-    && chmod 644 /usr/local/bin/kolla_extend_start /usr/local/bin/kolla_designate_extend_start
+    && chmod 755 /usr/local/bin/kolla_extend_start /usr/local/bin/kolla_designate_extend_start
 
 {% block designate_base_footer %}{% endblock %}

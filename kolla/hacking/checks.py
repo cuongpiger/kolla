@@ -12,7 +12,6 @@
 
 import re
 
-from hacking import core
 
 mutable_default_args = re.compile(r"^\s*def .+\((.+=\{\}|.+=\[\])")
 
@@ -23,13 +22,12 @@ UNDERSCORE_IMPORT_FILES = []
 string_translation = re.compile(r"[^_]*_\(\s*('|\")")
 translated_log = re.compile(
     r"(.)*LOG\.(audit|error|info|warn|warning|critical|exception)"
-    r"\(\s*_\(\s*('|\")")
+    "\(\s*_\(\s*('|\")")
 underscore_import_check = re.compile(r"(.)*import _(.)*")
 # We need this for cases where they have created their own _ function.
 custom_underscore_check = re.compile(r"(.)*_\s*=\s*(.)*")
 
 
-@core.flake8ext
 def check_explicit_underscore_import(logical_line, filename):
     """Check for explicit import of the _ function
 
@@ -52,7 +50,6 @@ def check_explicit_underscore_import(logical_line, filename):
         yield(0, "D703: Found use of _() without explicit import of _!")
 
 
-@core.flake8ext
 def no_log_warn(logical_line):
     """Disallow 'LOG.warn('
 
@@ -66,8 +63,13 @@ def no_log_warn(logical_line):
         yield (0, msg)
 
 
-@core.flake8ext
 def no_mutable_default_args(logical_line):
     msg = "K301: Method's default argument shouldn't be mutable!"
     if mutable_default_args.match(logical_line):
         yield (0, msg)
+
+
+def factory(register):
+    register(check_explicit_underscore_import)
+    register(no_mutable_default_args)
+    register(no_log_warn)

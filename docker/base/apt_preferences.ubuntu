@@ -1,11 +1,4 @@
-Package: rabbitmq-server
-Pin: version 3.11.*
-Pin-Priority: 1000
-
-Package: erlang*
-Pin: version 1:25.*
-Pin-Priority: 1000
-
-Package: *
-Pin: origin dlm.mariadb.com
-Pin-Priority: 1000
+# We want Ceph/Luminous
+Package: ceph* *cephfs* librbd* *rados* python*-rbd librgw* python*-rados python*-ceph* python*-rgw
+Pin: version 13.*
+Pin-Priority: -1

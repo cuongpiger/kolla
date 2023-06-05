@@ -1,7 +1,5 @@
 FROM {{ namespace }}/{{ image_prefix }}base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block nova_libvirt_header %}{% endblock %}
 
@@ -9,32 +7,37 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
 
 {{ macros.configure_user(name='nova', groups='qemu') }}
 
-{{ macros.enable_extra_repos(['ceph', 'libvirt', 'openvswitch']) }}
-
 {% if base_package_type == 'rpm' %}
 
     {% set nova_libvirt_packages = [
         'ceph-common',
-        'cyrus-sasl-md5',
         'cyrus-sasl-scram',
         'libguestfs',
         'libvirt-client',
         'libvirt-daemon',
         'libvirt-daemon-config-nwfilter',
+        'libvirt-daemon-driver-lxc',
         'libvirt-daemon-driver-nwfilter',
-        'libvirt-daemon-driver-nodedev',
         'openvswitch',
-        'qemu-img',
-        'qemu-kvm',
-        'swtpm',
+        'trousers'
     ] %}
+    {% if base_distro in ['centos', 'oraclelinux'] %}
+        {% set nova_libvirt_packages = nova_libvirt_packages + [
+            'qemu-kvm-ev'
+        ] %}
+    {% else %}
+        {% set nova_libvirt_packages = nova_libvirt_packages + [
+            'qemu-kvm'
+        ] %}
+    {% endif %}
+
     {% if base_arch == 'x86_64' %}
         {% set nova_libvirt_packages = nova_libvirt_packages + [
-            'edk2-ovmf'
+            'OVMF'
         ] %}
     {% elif base_arch == 'aarch64' %}
         {% set nova_libvirt_packages = nova_libvirt_packages + [
-            'edk2-aarch64'
+            'AAVMF'
         ] %}
     {% endif %}
 
@@ -43,7 +46,6 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
     {% set nova_libvirt_packages = [
         'ceph-common',
         'ebtables',
-        'libsasl2-modules-gssapi-mit',
         'libvirt-clients',
         'libvirt-daemon-system',
         'openvswitch-switch',
@@ -53,29 +55,21 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
         'python3-rbd',
         'qemu-block-extra',
         'qemu-system',
-        'qemu-utils',
-        'sasl2-bin',
-        'swtpm',
         'trousers'
     ] %}
 
     {% if base_arch == "aarch64" %}
         {% set nova_libvirt_packages = nova_libvirt_packages + [
-            'qemu-efi-aarch64'
+            'qemu-efi'
         ] %}
     {% elif base_arch == "x86_64" %}
         {% set nova_libvirt_packages = nova_libvirt_packages + [
             'ovmf',
+            'qemu-kvm'
         ] %}
-        # NOTE(hrw): Debian merged 'qemu-kvm' into 'qemu-system-ARCH' in 5.0-9
-        {% if base_distro == 'ubuntu' %}
-            {% set nova_libvirt_packages = nova_libvirt_packages + [
-                'qemu-kvm'
-            ] %}
-        {% endif %}
     {% endif %}
 
-    {% if base_arch in ['aarch64', 'x86_64'] %}
+    {% if base_arch != "ppc64le" %}
         {% set nova_libvirt_packages = nova_libvirt_packages + [
             'dmidecode',
             'xen-utils'
@@ -95,10 +89,17 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
 
 RUN rm -f /etc/libvirt/qemu/networks/default.xml /etc/libvirt/qemu/networks/autostart/default.xml
 
+{% elif base_package_type == 'rpm' %}
+
+    {% if base_arch == 'x86_64' %}
+# NOTE(jeffrey4l): for x86_64, nova will validate the existence of /usr/share/OVMF/OVMF_CODE.fd
+RUN ln -sf /usr/share/OVMF/OVMF_CODE.secboot.fd /usr/share/OVMF/OVMF_CODE.fd
+    {% endif %}
+
 {% endif %}
 
 COPY extend_start.sh /usr/local/bin/kolla_extend_start
-RUN chmod 644 /usr/local/bin/kolla_extend_start
+RUN chmod 755 /usr/local/bin/kolla_extend_start
 
 {% block nova_libvirt_footer %}{% endblock %}
 {% block footer %}{% endblock %}

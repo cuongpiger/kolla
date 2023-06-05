@@ -256,7 +256,7 @@ An alternative to this proposal involves using Logstash in a centralized
 way as done in [1].
 
 Another alternative would be to execute Logstash on each cluster node, as this
-spec proposes with Heka. But this would mean running a JVM on each cluster
+spec proposes with Heka. But this would mean running a JVM on each cluster
 node, and using Redis as a centralized queue.
 
 Also, as described above, we initially considered relying on services writing
@@ -304,10 +304,10 @@ The location of log files on the host will be mentioned in the documentation.
 References
 ==========
 
-[1] <https://review.opendev.org/#/c/252968/>
+[1] <https://review.openstack.org/#/c/252968/>
 [2] <http://hekad.readthedocs.org>
 [3] <http://blog.sematext.com/2015/09/28/recipe-rsyslog-redis-logstash/>
-[4] <https://review.opendev.org/#/c/269745/>
+[4] <https://review.openstack.org/#/c/269745/>
 [5] <http://hekad.readthedocs.org/en/latest/config/inputs/docker_log.html>
 [6] <http://hekad.readthedocs.org/en/latest/config/inputs/logstreamer.html>
-[7] <https://review.opendev.org/#/c/269952/>
+[7] <https://review.openstack.org/#/c/269952/>

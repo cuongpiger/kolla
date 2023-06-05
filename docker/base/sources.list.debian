@@ -1,11 +1,23 @@
 # Default repos
-deb http://deb.debian.org/debian bullseye main
+deb http://deb.debian.org/debian buster main
 
 # debian security updates
-deb http://deb.debian.org/debian-security bullseye-security main
+deb http://security.debian.org/debian-security buster/updates main
 
-# debian updates
-deb http://deb.debian.org/debian bullseye-updates main
+deb https://packages.grafana.com/oss/deb stable main
 
-# debian backports
-deb http://deb.debian.org/debian bullseye-backports main
+# elasticsearch (arch:all), logstash (arch:all), kibana (arch:amd64)
+deb [arch=amd64] https://artifacts.elastic.co/packages/5.x/apt stable main
+
+# main docker repo
+deb https://download.docker.com/linux/debian buster stable
+
+# Buster - Stein repos
+deb http://buster-stein.debian.net/debian buster-stein-backports main
+deb http://buster-stein.debian.net/debian buster-stein-backports-nochange main
+
+# td-agent for fluentd
+deb http://packages.treasuredata.com/3/debian/stretch stretch contrib
+
+# kibana for non-x86 and fixed libvirt for aarch64
+deb https://obs.linaro.org/repos/home:/marcin.juszkiewicz/debian-buster ./

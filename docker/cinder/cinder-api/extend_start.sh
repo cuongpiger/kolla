@@ -9,8 +9,24 @@ if [[ "${!KOLLA_BOOTSTRAP[@]}" ]]; then
 fi
 
 if [[ "${!KOLLA_OSM[@]}" ]]; then
-    cinder-manage db online_data_migrations
+    if [[ "${!MAX_NUMBER[@]}" ]]; then
+        cinder-manage db online_data_migrations --max_count ${MAX_NUMBER}
+    else
+        cinder-manage db online_data_migrations
+    fi
     exit 0
 fi
 
-. /usr/local/bin/kolla_httpd_setup
+# Assume the service runs on top of Apache when user is root
+if [[ "$(whoami)" == 'root' ]]; then
+    # NOTE(pbourke): httpd will not clean up after itself in some cases which
+    # results in the container not being able to restart. (bug #1489676, 1557036)
+    if [[ "${KOLLA_BASE_DISTRO}" =~ debian|ubuntu ]]; then
+        # Loading Apache2 ENV variables
+        . /etc/apache2/envvars
+        install -d /var/run/apache2/
+        rm -rf /var/run/apache2/*
+    else
+        rm -rf /var/run/httpd/* /run/httpd/* /tmp/httpd*
+    fi
+fi

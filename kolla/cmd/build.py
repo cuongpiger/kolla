@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -32,8 +32,8 @@ def main():
     try:
         statuses = build.run_build()
         if statuses:
-            (bad_results, good_results, unmatched_results, skipped_results,
-             unbuildable_results, allowed_to_fail_results) = statuses
+            (bad_results, good_results, unmatched_results,
+             skipped_results) = statuses
             if bad_results:
                 return 1
         return 0

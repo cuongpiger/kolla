@@ -1,4 +1,0 @@
----
-features:
-  - |
-    Adds support for TPM emulation in Nova (via "swtpm").

@@ -1,11 +1,20 @@
 FROM {{ namespace }}/{{ image_prefix }}swift-base:{{ tag }}
-{% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
-{% endblock %}
 
 {% block swift_container_header %}{% endblock %}
 
 {% import "macros.j2" as macros with context %}
+
+{% if install_type == 'binary' %}
+    {% if base_package_type == 'rpm' %}
+        {% set swift_container_packages = ['openstack-swift-container'] %}
+    {% elif base_package_type == 'deb' %}
+        {% set swift_container_packages = ['swift-container'] %}
+    {% endif %}
+
+{{ macros.install_packages(swift_container_packages | customizable("packages")) }}
+
+{% endif %}
 
 {% block swift_container_footer %}{% endblock %}
 {% block footer %}{% endblock %}
