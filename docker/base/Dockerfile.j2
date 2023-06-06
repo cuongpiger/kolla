@@ -93,7 +93,7 @@ COPY yum.conf /etc/yum.conf
     {% set base_yum_repo_keys = [
         'https://artifacts.elastic.co/GPG-KEY-elasticsearch',
         'https://packages.grafana.com/gpg.key',
-        'https://repos.influxdata.com/influxdb.key',
+        'https://repos.influxdata.com/influxdata-archive_compat.key',
         'https://packagecloud.io/gpg.key',
         'https://packages.treasuredata.com/GPG-KEY-td-agent'
     ] %}
@@ -351,7 +351,7 @@ COPY apt_preferences /etc/apt/preferences.d/kolla-custom
     {% set remote_apt_keys = [
       'https://packagecloud.io/rabbitmq/rabbitmq-server/gpgkey',
       'https://packages.grafana.com/gpg.key',
-      'https://repos.influxdata.com/influxdb.key'
+      'https://repos.influxdata.com/influxdata-archive_compat.key'
     ] %}
 {% elif base_distro == 'debian' %}
     {% set base_apt_keys = [
