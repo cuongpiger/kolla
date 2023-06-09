@@ -2,48 +2,56 @@
 - project:
     check:
       jobs:
-        - kolla-build-debian
-        - kolla-ansible-debian
-        - kolla-ansible-debian-upgrade
+        - kolla-build-debian-source
+        - kolla-build-debian-binary
+        - kolla-ansible-debian-source
     check-arm64:
       jobs:
-        - kolla-build-debian-aarch64
-        - kolla-ansible-debian-aarch64
-    gate:
-      jobs:
-        - kolla-build-debian
-        - kolla-ansible-debian
-        - kolla-ansible-debian-upgrade
+        - kolla-build-debian-source-aarch64
+        - kolla-ansible-debian-source-aarch64
     periodic:
       jobs:
-        - kolla-publish-debian-quay
-        - kolla-publish-debian-aarch64-quay
+        - kolla-publish-debian-source-quay
+        - kolla-publish-debian-source-aarch64-quay
     periodic-weekly:
       jobs:
-        - kolla-publish-debian-dockerhub
-        - kolla-publish-debian-aarch64-dockerhub
+        - kolla-publish-debian-source-dockerhub
+        - kolla-publish-debian-source-aarch64-dockerhub
+    release:
+      jobs:
+        - kolla-publish-debian-source-dockerhub
+        - kolla-publish-debian-source-aarch64-dockerhub
+        - kolla-publish-debian-binary-dockerhub
     experimental:
       jobs:
-        - kolla-build-no-infra-wheels-debian
-        - kolla-ansible-debian-ironic:
-            files: ^docker\/(base|dnsmasq|ironic|ironic-inspector|iscsid|openstack-base)\/.*
+        - kolla-build-no-infra-wheels-debian-source
 
 - job:
-    name: kolla-build-debian
+    name: kolla-build-debian-source
     parent: kolla-base
-    nodeset: kolla-debian-bullseye
+    nodeset: kolla-debian-buster
+    voting: false
     vars:
       base_distro: debian
-      base_distro_version: bullseye
+      install_type: source
 
 - job:
-    name: kolla-build-debian-aarch64
-    parent: kolla-build-debian
-    nodeset: kolla-debian-bullseye-aarch64
+    name: kolla-build-debian-source-aarch64
+    parent: kolla-build-debian-source
+    nodeset: kolla-debian-buster-aarch64
 
 - job:
-    name: kolla-publish-debian-dockerhub
-    parent: kolla-build-debian
+    name: kolla-build-debian-binary
+    parent: kolla-base
+    nodeset: kolla-debian-buster
+    voting: false
+    vars:
+      base_distro: debian
+      install_type: binary
+
+- job:
+    name: kolla-publish-debian-binary-dockerhub
+    parent: kolla-build-debian-binary
     post-run: tests/playbooks/publish.yml
     vars:
       publisher: true
@@ -53,8 +61,8 @@
       - kolla_dockerhub_creds
 
 - job:
-    name: kolla-publish-debian-quay
-    parent: kolla-build-debian
+    name: kolla-publish-debian-binary-quay
+    parent: kolla-build-debian-binary
     post-run: tests/playbooks/publish.yml
     vars:
       publisher: true
@@ -64,8 +72,8 @@
       - kolla_quay_io_creds
 
 - job:
-    name: kolla-publish-debian-aarch64-dockerhub
-    parent: kolla-build-debian-aarch64
+    name: kolla-publish-debian-source-dockerhub
+    parent: kolla-build-debian-source
     post-run: tests/playbooks/publish.yml
     vars:
       publisher: true
@@ -75,8 +83,8 @@
       - kolla_dockerhub_creds
 
 - job:
-    name: kolla-publish-debian-aarch64-quay
-    parent: kolla-build-debian-aarch64
+    name: kolla-publish-debian-source-quay
+    parent: kolla-build-debian-source
     post-run: tests/playbooks/publish.yml
     vars:
       publisher: true
@@ -86,8 +94,31 @@
       - kolla_quay_io_creds
 
 - job:
-    name: kolla-build-no-infra-wheels-debian
+    name: kolla-publish-debian-source-aarch64-dockerhub
+    parent: kolla-build-debian-source-aarch64
+    post-run: tests/playbooks/publish.yml
+    vars:
+      publisher: true
+      kolla_registry: dockerhub
+      kolla_namespace: kolla
+    secrets:
+      - kolla_dockerhub_creds
+
+- job:
+    name: kolla-publish-debian-source-aarch64-quay
+    parent: kolla-build-debian-source-aarch64
+    post-run: tests/playbooks/publish.yml
+    vars:
+      publisher: true
+      kolla_registry: quay.io
+      kolla_namespace: openstack.kolla
+    secrets:
+      - kolla_quay_io_creds
+
+- job:
+    name: kolla-build-no-infra-wheels-debian-source
     parent: kolla-build-no-infra-wheels-base
-    nodeset: kolla-debian-bullseye
+    nodeset: kolla-debian-buster
     vars:
       base_distro: debian
+      install_type: source

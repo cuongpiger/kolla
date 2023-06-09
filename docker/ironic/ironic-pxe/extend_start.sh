@@ -3,16 +3,14 @@
 
 # For x86 legacy BIOS boot mode
 function prepare_pxe_pxelinux {
-    if [[ "${KOLLA_BASE_DISTRO}" =~ debian|ubuntu ]]; then
-        cp /usr/lib/PXELINUX/pxelinux.0 \
-           /usr/lib/syslinux/modules/bios/{chain.c32,ldlinux.c32} \
-           ${TFTPBOOT_PATH}/
-    elif [[ "${KOLLA_BASE_DISTRO}" =~ centos|rocky ]]; then
-        if [[ "${TFTPBOOT_PATH}" != /tftpboot ]]; then
-            cp /tftpboot/{pxelinux.0,chain.c32,ldlinux.c32} \
-               ${TFTPBOOT_PATH}/
+    chown -R ironic: /tftpboot
+    for pxe_file in /var/lib/tftpboot/pxelinux.0 /var/lib/tftpboot/chain.c32 /usr/lib/syslinux/pxelinux.0 \
+                    /usr/lib/syslinux/chain.c32 /usr/lib/PXELINUX/pxelinux.0 \
+                    /usr/lib/syslinux/modules/bios/chain.c32 /usr/lib/syslinux/modules/bios/ldlinux.c32; do
+        if [[ -e "$pxe_file" ]]; then
+            cp "$pxe_file" /tftpboot
         fi
-    fi
+    done
 }
 
 # For UEFI boot mode
@@ -20,9 +18,9 @@ function prepare_pxe_grub {
     if [[ "${KOLLA_BASE_DISTRO}" =~ debian|ubuntu  ]]; then
         shim_src_file="/usr/lib/shim/shim*64.efi.signed"
         grub_src_file="/usr/lib/grub/*-efi-signed/grubnet*64.efi.signed"
-    elif [[ "${KOLLA_BASE_DISTRO}" =~ centos|rocky ]]; then
-        shim_src_file="/boot/efi/EFI/${KOLLA_BASE_DISTRO}/shim*64.efi"
-        grub_src_file="/boot/efi/EFI/${KOLLA_BASE_DISTRO}/grub*64.efi"
+    elif [[ "${KOLLA_BASE_DISTRO}" =~ centos|rhel ]]; then
+        shim_src_file="/boot/efi/EFI/centos/shim*64.efi"
+        grub_src_file="/boot/efi/EFI/centos/grub*64.efi"
     fi
 
     if [[ "${KOLLA_BASE_ARCH}" == "x86_64" ]]; then
@@ -33,8 +31,8 @@ function prepare_pxe_grub {
         grub_dst_file="grubaa64.efi"
     fi
 
-    cp $shim_src_file ${TFTPBOOT_PATH}/$shim_dst_file
-    cp $grub_src_file ${TFTPBOOT_PATH}/$grub_dst_file
+    cp $shim_src_file /tftpboot/$shim_dst_file
+    cp $grub_src_file /tftpboot/$grub_dst_file
 }
 
 function prepare_ipxe {
@@ -43,14 +41,21 @@ function prepare_ipxe {
     # was ipxe.efi. Ensure that both exist, using symlinks where the files are
     # named differently to allow the original names to be used in ironic.conf.
     if [[ "${KOLLA_BASE_DISTRO}" =~ debian|ubuntu ]]; then
-        cp /usr/lib/ipxe/{undionly.kpxe,ipxe.efi,snponly.efi} ${TFTPBOOT_PATH}/
-    elif [[ "${KOLLA_BASE_DISTRO}" =~ centos|rocky ]]; then
-        cp /usr/share/ipxe/{undionly.kpxe,ipxe*.efi} ${TFTPBOOT_PATH}/
-        if [[ ! -e ${TFTPBOOT_PATH}/ipxe.efi ]]; then
-            ln -s ${TFTPBOOT_PATH}/ipxe-${KOLLA_BASE_ARCH}.efi ${TFTPBOOT_PATH}/ipxe.efi
+        cp /usr/lib/ipxe/{undionly.kpxe,ipxe.efi} /tftpboot
+        # NOTE(mgoddard): The 'else' can be removed  when snponly.efi is
+        # available in Jammy 22.04.
+        if [[ -f /usr/lib/ipxe/snponly.efi ]]; then
+            cp /usr/lib/ipxe/snponly.efi /tftpboot/snponly.efi
+        elif [[ ! -e /tftpboot/snponly.efi ]]; then
+            ln -s /tftpboot/ipxe.efi /tftpboot/snponly.efi
         fi
-        if [[ ! -e ${TFTPBOOT_PATH}/snponly.efi ]]; then
-            ln -s ${TFTPBOOT_PATH}/ipxe-snponly-${KOLLA_BASE_ARCH}.efi ${TFTPBOOT_PATH}/snponly.efi
+    elif [[ "${KOLLA_BASE_DISTRO}" =~ centos|rhel ]]; then
+        cp /usr/share/ipxe/{undionly.kpxe,ipxe*.efi} /tftpboot
+        if [[ ! -e /tftpboot/ipxe.efi ]]; then
+            ln -s /tftpboot/ipxe-${KOLLA_BASE_ARCH}.efi /tftpboot/ipxe.efi
+        fi
+        if [[ ! -e /tftpboot/snponly.efi ]]; then
+            ln -s /tftpboot/ipxe-snponly-${KOLLA_BASE_ARCH}.efi /tftpboot/snponly.efi
         fi
     fi
 }
@@ -58,15 +63,10 @@ function prepare_ipxe {
 # Bootstrap and exit if KOLLA_BOOTSTRAP variable is set. This catches all cases
 # of the KOLLA_BOOTSTRAP variable being set, including empty.
 if [[ "${!KOLLA_BOOTSTRAP[@]}" ]]; then
-    mkdir -p ${TFTPBOOT_PATH} ${HTTPBOOT_PATH}
-    chown ironic: ${TFTPBOOT_PATH} ${HTTPBOOT_PATH}
     prepare_pxe_pxelinux
     prepare_pxe_grub
     prepare_ipxe
     exit 0
 fi
-
-# Template out a TFTP map file, using the TFTPBOOT_PATH variable.
-envsubst < /map-file-template > /map-file
 
 . /usr/local/bin/kolla_httpd_setup

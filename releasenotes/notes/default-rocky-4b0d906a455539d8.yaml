@@ -1,5 +1,0 @@
----
-upgrade:
-  - |
-    Default base distribution has been changed from CentOS Stream
-    to Rocky Linux.

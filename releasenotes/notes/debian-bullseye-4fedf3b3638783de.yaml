@@ -1,6 +1,0 @@
----
-features:
-  - |
-    Debian 'bullseye' is now used instead of 'buster'. Bullseye is the current
-    stable release of Debian. Several images gained Debian support with this
-    move.

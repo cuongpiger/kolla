@@ -1,5 +1,0 @@
----
-deprecations:
-  - |
-    The ``qdrouterd`` image is deprecated and will be removed in the Zed cycle.
-    It is supported only by CentOS.

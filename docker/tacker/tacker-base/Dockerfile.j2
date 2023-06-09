@@ -7,8 +7,26 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
 
 {% import "macros.j2" as macros with context %}
 
-{{ macros.enable_extra_repos(['openvswitch']) }}
 {{ macros.configure_user(name='tacker') }}
+
+{% if install_type == 'binary' %}
+
+    {% if base_package_type == 'rpm' %}
+        {% set tacker_base_packages = [
+            'openstack-tacker-common',
+            'python3-networking-sfc'
+        ] %}
+
+    {% elif base_package_type == 'deb' %}
+
+RUN echo '{{ install_type }} not yet available for {{ base_distro }}' \
+    && /bin/false
+
+    {% endif %}
+
+{{ macros.install_packages(tacker_base_packages | customizable("packages")) }}
+
+{% elif install_type == 'source' %}
 
 ADD tacker-base-archive /tacker-base-source
 ADD plugins-archive /
@@ -21,16 +39,20 @@ ADD plugins-archive /
     '/plugins/*'
 ] %}
 
-COPY extend_start.sh /usr/local/bin/kolla_extend_start
-
 RUN ln -s tacker-base-source/* tacker \
     && {{ macros.install_pip(tacker_base_pip_packages | customizable("pip_packages")) }} \
     && mkdir -p /etc/tacker \
     && cp -r /tacker/etc/tacker/* /etc/tacker \
+    && chown -R tacker: /etc/tacker \
     && if [ "$(ls /plugins)" ]; then \
         {{ macros.install_pip(tacker_base_plugins_pip_packages) }}; \
-       fi \
-    && touch /usr/local/bin/kolla_tacker_extend_start \
-    && chmod 644 /usr/local/bin/kolla_extend_start /usr/local/bin/kolla_tacker_extend_start
+    fi
+
+{% endif %}
+
+COPY extend_start.sh /usr/local/bin/kolla_extend_start
+
+RUN touch /usr/local/bin/kolla_tacker_extend_start \
+    && chmod 755 /usr/local/bin/kolla_extend_start /usr/local/bin/kolla_tacker_extend_start
 
 {% block tacker_base_footer %}{% endblock %}

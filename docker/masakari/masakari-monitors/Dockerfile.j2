@@ -7,29 +7,36 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
 
 {% import "macros.j2" as macros with context %}
 
-{{ macros.enable_extra_repos(['hacluster', 'libvirt']) }}
+{{ macros.enable_extra_repos(['hacluster']) }}
 
-{% if base_package_type == 'rpm' %}
+{% if install_type == 'binary' %}
 
-    {% set masakari_monitors_packages = [
-        'cyrus-sasl-md5',
-        'cyrus-sasl-scram',
-        'python3-libvirt',
-        'pacemaker-cli',
-        'tcpdump',
-    ] %}
+RUN echo '{{ install_type }} not yet available for {{ base_distro }}' \
+    && /bin/false
 
-{% elif base_package_type == 'deb' %}
+{% elif install_type == 'source' %}
 
-    {% set masakari_monitors_packages = [
-        'libsasl2-modules-gssapi-mit',
-        'python3-libvirt',
-        'pacemaker-cli-utils',
-        'sasl2-bin',
-        'tcpdump',
-    ] %}
+    {% if base_package_type == 'rpm' %}
 
-{% endif %}
+        {% set masakari_monitors_packages = [
+            'cyrus-sasl-md5',
+            'cyrus-sasl-scram',
+            'python3-libvirt',
+            'pacemaker-cli',
+            'tcpdump',
+        ] %}
+
+    {% elif base_package_type == 'deb' %}
+
+        {% set masakari_monitors_packages = [
+            'libsasl2-modules-gssapi-mit',
+            'python3-libvirt',
+            'pacemaker-cli-utils',
+            'sasl2-bin',
+            'tcpdump',
+        ] %}
+
+    {% endif %}
 
 {{ macros.install_packages(masakari_monitors_packages | customizable("packages")) }}
 
@@ -39,13 +46,20 @@ ADD masakari-monitors-archive /masakari-monitors-source
     '/masakari-monitors'
 ] %}
 
-COPY masakari_monitors_sudoers /etc/sudoers.d/kolla_masakari_monitors_sudoers
-
+# NOTE(hrw): distros may provide other version of libvirt
 RUN ln -s masakari-monitors-source/* masakari-monitors \
+    && sed -i -e "/^libvirt-python/d" /requirements/upper-constraints.txt \
+    && sed -i -e "/^libvirt-python/d" /masakari-monitors/requirements.txt \
     && {{ macros.install_pip(masakari_monitors_pip_packages | customizable("pip_packages")) }} \
     && mkdir -p /etc/masakari-monitors \
-    && chmod 750 /etc/sudoers.d \
+    && chown -R masakari: /etc/masakari-monitors
+
+COPY masakari_monitors_sudoers /etc/sudoers.d/kolla_masakari_monitors_sudoers
+
+RUN chmod 750 /etc/sudoers.d \
     && chmod 640 /etc/sudoers.d/kolla_masakari_monitors_sudoers
+
+{% endif %}
 
 {% block masakari_monitors_footer %}{% endblock %}
 {% block footer %}{% endblock %}

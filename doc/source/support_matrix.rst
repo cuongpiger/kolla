@@ -14,24 +14,27 @@ Supported base images
 
 The following base container images are supported:
 
-================== =============================== ================
-Distribution       Default base                    Default base tag
-================== =============================== ================
-Rocky Linux        quay.io/rockylinux/rockylinux   9
-Debian Bullseye    debian                          bullseye
-Ubuntu Jammy       ubuntu                          22.04
-================== =============================== ================
+.. note::
+
+   CentOS 7 is no longer supported as a base container image. The Train release
+   supports both CentOS 7 and 8 images, and provides a route for migration.
+
+.. note::
+
+   CentOS 8 is no longer supported since it has been marked as End of Life
+   and repositories have been removed from CentOS mirrors.
+
+=============== ============ =============================== ================
+Distribution    Default base Default base image              Default base tag
+=============== ============ =============================== ================
+CentOS 8 Stream centos       quay.io/centos/centos           stream8
+Debian Buster   debian       debian                          10
+RHEL 8          rhel         rhel                            8
+Ubuntu Focal    ubuntu       ubuntu                          20.04
+=============== ============ =============================== ================
 
 The remainder of this document outlines which images are supported on which of
 these distribution.
-
-Ceph versions in Kolla images
-=============================
-
-.. csv-table:: Ceph versions
-   :header-rows: 2
-   :stub-columns: 1
-   :file: ./ceph_versions.csv
 
 Support clause definitions
 ==========================
@@ -44,14 +47,19 @@ Coverage:
 * CI in ``kolla-ansible`` is testing that images are functional
 * kolla core team is maintaining versions
 
-U - Untested
-------------
+M - Maintained
+--------------
 
 Coverage:
 
-* CI in ``kolla-ansible`` is *NOT* testing that images are functional
-* Many untested services are working fine, but the kolla core team cannot
-  guarantee that they are all functional
+* kolla core team is maintaining versions
+
+C - Community maintained
+------------------------
+
+Coverage:
+
+* supported by the broader community (not core team) or not supported at all
 
 N - Not Available/Unknown
 -------------------------
@@ -63,19 +71,22 @@ x86_64 images
 =============
 
 .. csv-table:: x86_64 images
-   :header-rows: 1
+   :header-rows: 2
    :stub-columns: 1
-   :widths: auto
    :file: ./matrix_x86.csv
 
 aarch64 images
 ==============
 
 .. csv-table:: aarch64 images
-   :header-rows: 1
+   :header-rows: 2
    :stub-columns: 1
-   :widths: auto
    :file: ./matrix_aarch64.csv
+
+ppc64le images
+==============
+
+.. note:: TODO
 
 .. _unbuildable-images-list:
 
@@ -83,4 +94,11 @@ Currently unbuildable images
 ============================
 
 For a list of currently unbuildable images please look into
-``kolla/image/unbuildable.py`` file - ``UNBUILDABLE_IMAGES`` dictionary.
+``kolla/image/build.py`` file - ``UNBUILDABLE_IMAGES`` dictionary.
+
+Ceph versions in Kolla images
+=============================
+
+.. csv-table:: Ceph versions
+   :file: ./ceph_versions.csv
+

@@ -1,4 +1,4 @@
-FROM {{ namespace }}/{{ image_prefix }}base:{{ tag }}
+FROM {{ namespace }}/{{ infra_image_prefix }}base:{{ tag }}
 {% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
 {% endblock %}
@@ -11,7 +11,7 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
 {% if base_package_type == 'rpm' %}
 
 #TODO(sean-k-mooney) create repo via open suse build system to package
-# for centos distro.
+# for centos/rhel distros.
 
 RUN echo 'image not yet available for {{ base_distro }}' \
     && /bin/false
@@ -19,9 +19,8 @@ RUN echo 'image not yet available for {{ base_distro }}' \
 {% elif base_package_type == 'deb' %}
 
 {% set ovs_dpdk_packages = [
-    'crudini',
-    'libdpdk-dev',
-    'openvswitch-switch-dpdk'
+    'openvswitch-switch-dpdk',
+    'crudini'
 ] %}
 
 {{ macros.install_packages(ovs_dpdk_packages | customizable("packages")) }}
@@ -33,6 +32,6 @@ RUN update-alternatives --set ovs-vswitchd /usr/lib/openvswitch-switch-dpdk/ovs-
 {% endblock %}
 
 COPY extend_start.sh /usr/local/bin/kolla_extend_start
-RUN chmod 644 /usr/local/bin/kolla_extend_start
+RUN chmod 755 /usr/local/bin/kolla_extend_start
 
 {% block ovsdpdk_footer %}{% endblock %}

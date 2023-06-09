@@ -7,17 +7,29 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
 
 {% import "macros.j2" as macros with context %}
 
-{{ macros.enable_extra_repos(['libvirt']) }}
+{% if install_type == 'binary' %}
+    {% if base_package_type == 'rpm' %}
+        {% set ceilometer_compute_packages = [
+            'openstack-ceilometer-compute',
+         ] %}
+    {% elif base_package_type == 'deb' %}
+        {% set ceilometer_compute_packages = [
+            'ceilometer-agent-compute',
+            'python3-libvirt'
+         ] %}
+    {% endif %}
+{{ macros.install_packages(ceilometer_compute_packages | customizable("packages")) }}
 
-{% if base_package_type == 'rpm' %}
-    {% set ceilometer_compute_packages = [
-        'python3-libvirt'
-    ] %}
-{% elif base_package_type == 'deb' %}
-    {% set ceilometer_compute_packages = [
-        'python3-libvirt'
-    ] %}
-{% endif %}
+{% elif install_type == 'source' %}
+    {% if base_package_type == 'rpm' %}
+        {% set ceilometer_compute_packages = [
+            'python3-libvirt'
+         ] %}
+    {% elif base_package_type == 'deb' %}
+        {% set ceilometer_compute_packages = [
+            'python3-libvirt'
+         ] %}
+    {% endif %}
 
 {{ macros.install_packages(ceilometer_compute_packages | customizable("packages")) }}
 
@@ -25,6 +37,8 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
 {% set ceilometer_compute_pip_packages = [] %}
 
 RUN {{ macros.install_pip(ceilometer_compute_pip_packages | customizable("pip_packages")) }}
+
+{% endif %}
 
 {% block ceilometer_compute_footer %}{% endblock %}
 {% block footer %}{% endblock %}

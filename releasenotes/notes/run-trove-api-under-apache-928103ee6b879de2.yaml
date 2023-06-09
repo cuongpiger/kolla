@@ -1,6 +1,0 @@
----
-upgrade:
-  - |
-    Switch trove-api to wsgi running under apache. Replace trove
-    user with root user in trove-api image, services running under
-    apache need root privilege.

@@ -9,18 +9,47 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
 
 {{ macros.configure_user(name='placement') }}
 
-{% if base_package_type == 'rpm' %}
+{% if install_type == 'binary' %}
+    {% if base_package_type == 'rpm' %}
 
-    {% set placement_base_packages = [
-    ] %}
+        {% set placement_base_packages = [
+            'mariadb',
+            'openstack-placement-common',
+        ] %}
 
-{% elif base_package_type == 'deb' %}
+    {% elif base_package_type == 'deb' %}
 
-    {% set placement_base_packages = [
-    ] %}
+        {% set placement_base_packages = [
+            'mariadb-client',
+            'placement-common',
+        ] %}
+    {% endif %}
 
-{% endif %}
+    {% if base_distro in ['debian'] %}
+        {% set mysql_migrate_path = '/usr/share/placement-common/mysql-migrate-db.sh' %}
+    {% else %}
+        {% set mysql_migrate_path = '/usr/share/placement/mysql-migrate-db.sh' %}
+    {% endif %}
 
+{{ macros.install_packages(placement_base_packages | customizable("packages")) }} \
+    && cp {{ mysql_migrate_path }} /opt/ \
+    && chmod 755 /opt/mysql-migrate-db.sh
+
+{% elif install_type == 'source' %}
+
+    {% if base_package_type == 'rpm' %}
+
+        {% set placement_base_packages = [
+            'mariadb',
+        ] %}
+
+    {% elif base_package_type == 'deb' %}
+
+        {% set placement_base_packages = [
+            'mariadb-client',
+        ] %}
+
+    {% endif %}
 {{ macros.install_packages(placement_base_packages | customizable("packages")) }}
 
 ADD placement-base-archive /placement-base-source
@@ -30,13 +59,19 @@ ADD plugins-archive /
     '/placement'
 ] %}
 
-COPY extend_start.sh /usr/local/bin/kolla_extend_start
-
 RUN ln -s placement-base-source/* placement \
     && {{ macros.install_pip(placement_base_pip_packages | customizable("pip_packages")) }} \
     && mkdir -p /etc/placement/ \
     && cp -r /placement/etc/placement/* /etc/placement/ \
-    && touch /usr/local/bin/kolla_placement_extend_start \
-    && chmod 644 /usr/local/bin/kolla_extend_start /usr/local/bin/kolla_placement_extend_start
+    && chown -R placement: /etc/placement/ \
+    && cp /placement/tools/mysql-migrate-db.sh /opt/ \
+    && chmod 755 /opt/mysql-migrate-db.sh
+
+{% endif %}
+
+COPY extend_start.sh /usr/local/bin/kolla_extend_start
+
+RUN touch /usr/local/bin/kolla_placement_extend_start \
+    && chmod 755 /usr/local/bin/kolla_extend_start /usr/local/bin/kolla_placement_extend_start
 
 {% block placement_base_footer %}{% endblock %}

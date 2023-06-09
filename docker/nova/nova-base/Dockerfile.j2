@@ -7,48 +7,95 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
 
 {% import "macros.j2" as macros with context %}
 
-{{ macros.enable_extra_repos(['libvirt', 'openvswitch']) }}
 {{ macros.configure_user(name='nova', groups='qemu') }}
 
-{% if base_package_type == 'rpm' %}
+{% if install_type == 'binary' %}
+    {% if base_package_type == 'rpm' %}
 
-    {% set nova_base_packages = [
-            'openvswitch',
+        {% set nova_base_packages = [
+                'openstack-nova-common',
+                'openvswitch'
+        ] %}
+
+        {% if base_arch == 'x86_64' %}
+            {% set nova_base_packages = nova_base_packages + [
+                'edk2-ovmf'
+            ] %}
+        {% elif base_arch == 'aarch64' %}
+            {% set nova_base_packages = nova_base_packages + [
+                'edk2-aarch64'
+            ] %}
+        {% elif base_arch == 'ppc64le' %}
+            {# NOTE(Jeffrey4l): no packages for ppc64le #}
+        {% endif %}
+
+    {% elif base_package_type == 'deb' %}
+
+        {% set nova_base_packages = [
+                'nova-common',
+                'openvswitch-switch',
+                'python3-nova'
+        ] %}
+
+        {% if base_arch == 'x86_64' %}
+            {% set nova_base_packages = nova_base_packages + [
+                'ovmf'
+            ] %}
+        {% elif base_arch == 'aarch64' %}
+            {% set nova_base_packages = nova_base_packages + [
+                'qemu-efi',
+            ] %}
+        {% elif base_arch == 'ppc64le' %}
+            {# NOTE(Jeffrey4l): no packages for ppc64le #}
+        {% endif %}
+    {% endif %}
+
+{{ macros.install_packages(nova_base_packages | customizable("packages")) }}
+
+{% elif install_type == 'source' %}
+    {% if base_package_type == 'rpm' %}
+
+        {% set nova_base_packages = [
+                'openvswitch',
+                'python3-openvswitch'
+        ] %}
+        {% if base_arch == 'x86_64' %}
+            {% set nova_base_packages = nova_base_packages + [
+                'edk2-ovmf'
+            ] %}
+        {% elif base_arch == 'aarch64' %}
+            {% set nova_base_packages = nova_base_packages + [
+                'edk2-aarch64'
+            ] %}
+        {% elif base_arch == 'ppc64le' %}
+            {# NOTE(Jeffrey4l): no packages for ppc64le #}
+        {% endif %}
+
+    {% elif base_package_type == 'deb' %}
+
+        {% set nova_base_packages = [
+            'dnsmasq',
+            'ebtables',
+            'iproute2',
+            'iptables',
+            'openssh-client',
+            'openvswitch-switch',
+            'python3-libvirt',
             'python3-openvswitch'
-    ] %}
-    {% if base_arch == 'x86_64' %}
-        {% set nova_base_packages = nova_base_packages + [
-            'edk2-ovmf'
         ] %}
-    {% elif base_arch == 'aarch64' %}
-        {% set nova_base_packages = nova_base_packages + [
-            'edk2-aarch64'
-        ] %}
+        {% if base_arch == 'x86_64' %}
+            {% set nova_base_packages = nova_base_packages + [
+                'ovmf'
+            ] %}
+        {% elif base_arch == 'aarch64' %}
+            {% set nova_base_packages = nova_base_packages + [
+                'qemu-efi',
+            ] %}
+        {% elif base_arch == 'ppc64le' %}
+            {# NOTE(Jeffrey4l): no packages for ppc64le #}
+        {% endif %}
+
     {% endif %}
-
-{% elif base_package_type == 'deb' %}
-
-    {% set nova_base_packages = [
-        'dnsmasq',
-        'ebtables',
-        'iproute2',
-        'iptables',
-        'openssh-client',
-        'openvswitch-switch',
-        'python3-libvirt',
-        'python3-openvswitch'
-    ] %}
-    {% if base_arch == 'x86_64' %}
-        {% set nova_base_packages = nova_base_packages + [
-            'ovmf'
-        ] %}
-    {% elif base_arch == 'aarch64' %}
-        {% set nova_base_packages = nova_base_packages + [
-            'qemu-efi',
-        ] %}
-    {% endif %}
-
-{% endif %}
 
 {{ macros.install_packages(nova_base_packages | customizable("packages")) }}
 
@@ -63,20 +110,26 @@ ADD plugins-archive /
     '/plugins/*'
 ] %}
 
-COPY nova_sudoers /etc/sudoers.d/kolla_nova_sudoers
-COPY extend_start.sh /usr/local/bin/kolla_extend_start
-
 RUN ln -s nova-base-source/* nova \
     && {{ macros.install_pip(nova_base_pip_packages | customizable("pip_packages")) }} \
     && mkdir -p /etc/nova/ \
     && cp -r /nova/etc/nova/* /etc/nova/ \
+    && chown -R nova: /etc/nova/ \
     && sed -i 's|^exec_dirs.*|exec_dirs=/var/lib/kolla/venv/bin,/sbin,/usr/sbin,/bin,/usr/bin,/usr/local/bin,/usr/local/sbin|g' /etc/nova/rootwrap.conf \
     && if [ "$(ls /plugins)" ]; then \
         {{ macros.install_pip(nova_base_plugins_pip_packages) }}; \
-       fi \
-    && chmod 750 /etc/sudoers.d \
-    && chmod 440 /etc/sudoers.d/kolla_nova_sudoers \
-    && touch /usr/local/bin/kolla_nova_extend_start \
-    && chmod 644 /usr/local/bin/kolla_extend_start /usr/local/bin/kolla_nova_extend_start
+    fi
+
+COPY nova_sudoers /etc/sudoers.d/kolla_nova_sudoers
+RUN chmod 750 /etc/sudoers.d \
+    && chmod 440 /etc/sudoers.d/kolla_nova_sudoers
+
+{% endif %}
+
+
+COPY extend_start.sh /usr/local/bin/kolla_extend_start
+
+RUN touch /usr/local/bin/kolla_nova_extend_start \
+    && chmod 755 /usr/local/bin/kolla_extend_start /usr/local/bin/kolla_nova_extend_start
 
 {% block nova_base_footer %}{% endblock %}

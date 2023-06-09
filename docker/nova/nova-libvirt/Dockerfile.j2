@@ -1,4 +1,4 @@
-FROM {{ namespace }}/{{ image_prefix }}base:{{ tag }}
+FROM {{ namespace }}/{{ infra_image_prefix }}base:{{ tag }}
 {% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
 {% endblock %}
@@ -9,7 +9,7 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
 
 {{ macros.configure_user(name='nova', groups='qemu') }}
 
-{{ macros.enable_extra_repos(['ceph', 'libvirt', 'openvswitch']) }}
+{{ macros.enable_extra_repos(['ceph', 'libvirt']) }}
 
 {% if base_package_type == 'rpm' %}
 
@@ -22,11 +22,9 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
         'libvirt-daemon',
         'libvirt-daemon-config-nwfilter',
         'libvirt-daemon-driver-nwfilter',
-        'libvirt-daemon-driver-nodedev',
         'openvswitch',
-        'qemu-img',
         'qemu-kvm',
-        'swtpm',
+        'trousers'
     ] %}
     {% if base_arch == 'x86_64' %}
         {% set nova_libvirt_packages = nova_libvirt_packages + [
@@ -53,9 +51,7 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
         'python3-rbd',
         'qemu-block-extra',
         'qemu-system',
-        'qemu-utils',
         'sasl2-bin',
-        'swtpm',
         'trousers'
     ] %}
 
@@ -98,7 +94,7 @@ RUN rm -f /etc/libvirt/qemu/networks/default.xml /etc/libvirt/qemu/networks/auto
 {% endif %}
 
 COPY extend_start.sh /usr/local/bin/kolla_extend_start
-RUN chmod 644 /usr/local/bin/kolla_extend_start
+RUN chmod 755 /usr/local/bin/kolla_extend_start
 
 {% block nova_libvirt_footer %}{% endblock %}
 {% block footer %}{% endblock %}

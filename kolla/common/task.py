@@ -18,8 +18,7 @@ class Task(object, metaclass=abc.ABCMeta):
     def __init__(self):
         self.success = False
 
-    @property
-    @abc.abstractmethod
+    @abc.abstractproperty
     def name(self):
         pass
 

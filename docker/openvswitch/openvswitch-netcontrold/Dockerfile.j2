@@ -1,4 +1,4 @@
-FROM {{ namespace }}/{{ image_prefix }}openvswitch-base:{{ tag }}
+FROM {{ namespace }}/{{ infra_image_prefix }}openvswitch-base:{{ tag }}
 {% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
 {% endblock %}
@@ -10,6 +10,7 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
 {% block openvswitch_netcontrold_install %}
 
 {% set openvswitch_netcontrold_packages = [
+        'python3-pip',
     ] %}
 
 {{ macros.install_packages(openvswitch_netcontrold_packages | customizable("packages")) }}
@@ -19,13 +20,12 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
   ]
 %}
 
-RUN {{ macros.install_pip(['pip', 'wheel', 'setuptools'], constraints=false) }} \
-    && {{ macros.install_pip(openvswitch_netcontrold_pip_packages | customizable("pip_packages"), constraints = false) }}
+RUN {{ macros.install_pip(openvswitch_netcontrold_pip_packages | customizable("pip_packages"), constraints = false) }}
 
 {% endblock %}
 
 COPY extend_start.sh /usr/local/bin/kolla_openvswitch_extend_start
-RUN chmod 644 /usr/local/bin/kolla_openvswitch_extend_start
+RUN chmod 755 /usr/local/bin/kolla_openvswitch_extend_start
 
 {% block openvswitch_netcontrold_footer %}{% endblock %}
 {% block footer %}{% endblock %}

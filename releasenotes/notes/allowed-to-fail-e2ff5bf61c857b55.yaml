@@ -1,9 +1,0 @@
----
-features:
-  - |
-    Adds a new ``[DEFAULT] allowed-to-fail`` configuration option. It can be
-    used to define a list of images which are allowed to fail during builds
-    without marking the whole build as failed.
-
-    The main use of this option is to keep CI systems in a working state
-    despite some less important images failing.

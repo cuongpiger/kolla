@@ -7,8 +7,21 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
 
 {% import "macros.j2" as macros with context %}
 
-{% set cloudkitty_processor_packages = [
-] %}
+{% if install_type == 'binary' %}
+    {% if base_package_type == 'rpm' %}
+
+        {% set cloudkitty_processor_packages = [
+                'openstack-cloudkitty-processor',
+        ] %}
+
+    {% elif base_package_type == 'deb' %}
+
+RUN echo '{{ install_type }} not yet available for {{ base_distro }}' \
+    && /bin/false
+
+    {% endif %}
+
+{% endif %}
 
 {{ macros.install_packages(cloudkitty_processor_packages | customizable("packages")) }}
 

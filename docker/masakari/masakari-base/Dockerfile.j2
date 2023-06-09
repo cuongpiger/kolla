@@ -9,19 +9,28 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
 
 {{ macros.configure_user(name='masakari') }}
 
-{% if base_package_type == 'rpm' %}
+{% if install_type == 'binary' %}
 
-    {% set masakari_base_packages = [
-    ] %}
+RUN echo '{{ install_type }} not yet available for {{ base_distro }}' \
+    && /bin/false
 
-{% elif base_package_type == 'deb' %}
+{% elif install_type == 'source' %}
 
-    {% set masakari_base_packages = [
-    ] %}
+    {% if base_package_type == 'rpm' %}
 
-{% endif %}
+        {% set masakari_base_packages = [
+        ] %}
 
 {{ macros.install_packages(masakari_base_packages | customizable("packages")) }}
+RUN mkdir -p /var/www/cgi-bin/masakari
+    {% elif base_package_type == 'deb' %}
+
+        {% set masakari_base_packages = [
+        ] %}
+
+{{ macros.install_packages(masakari_base_packages | customizable("packages")) }}
+RUN mkdir -p /var/www/cgi-bin/masakari
+    {% endif %}
 
 ADD masakari-base-archive /masakari-base-source
 
@@ -29,14 +38,18 @@ ADD masakari-base-archive /masakari-base-source
     '/masakari'
 ] %}
 
-COPY extend_start.sh /usr/local/bin/kolla_extend_start
-
 RUN ln -s masakari-base-source/* masakari \
     && {{ macros.install_pip(masakari_base_pip_packages | customizable("pip_packages")) }} \
     && mkdir -p /etc/masakari /var/www/cgi-bin/masakari \
     && cp -r /masakari/etc/masakari/* /etc/masakari/ \
-    && chmod 755 /var/www/cgi-bin/masakari \
-    && touch /usr/local/bin/kolla_masakari_extend_start \
-    && chmod 644 /usr/local/bin/kolla_extend_start /usr/local/bin/kolla_masakari_extend_start
+    && chown -R masakari: /etc/masakari /var/www/cgi-bin/masakari
+
+{% endif %}
+
+COPY extend_start.sh /usr/local/bin/kolla_extend_start
+
+RUN touch /usr/local/bin/kolla_masakari_extend_start \
+    && chmod 755 /usr/local/bin/kolla_extend_start /usr/local/bin/kolla_masakari_extend_start \
+    && chmod 755 /var/www/cgi-bin/masakari
 
 {% block masakari_base_footer %}{% endblock %}

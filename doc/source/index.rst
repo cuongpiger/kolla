@@ -33,10 +33,6 @@ subproject of Kolla that deploys the Kolla container images using Ansible.
 that uses Kolla Ansible and Bifrost to deploy an OpenStack control plane to
 bare metal.
 
-`ansible-collection-kolla
-<https://docs.openstack.org/ansible-collection-kolla/latest/>`_ is a subproject
-of Kolla that provides common Ansible content for use by Kolla projects.
-
 Site Notes
 ==========
 
@@ -44,12 +40,6 @@ This documentation is continually updated and may not represent the state of
 the project at any specific prior release. To access documentation for a
 previous release of kolla, choose one of the OpenStack release names on
 the right of the title.
-
-Release Notes
-=============
-
-The release notes for the project can be found here:
-https://docs.openstack.org/releasenotes/kolla/
 
 Administrator Guide
 ===================
@@ -59,14 +49,6 @@ Administrator Guide
 
    admin/index
 
-Support Matrix
-==============
-
-.. toctree::
-   :maxdepth: 2
-
-   support_matrix
-
 Contributor Guide
 =================
 
@@ -74,3 +56,11 @@ Contributor Guide
    :maxdepth: 2
 
    contributor/index
+
+Support Matrix
+==============
+
+.. toctree::
+   :maxdepth: 2
+
+   support_matrix

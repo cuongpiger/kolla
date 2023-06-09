@@ -1,5 +1,4 @@
-Distro,Ceph,
-,Source, Release
-Rocky Linux,CentOS Storage SIG,Quincy
-Ubuntu,Ubuntu,Quincy
-Debian,Debian,Nautilus
+Distro,Ceph source,Release
+CentOS,CentOS Storage SIG,Nautilus
+Ubuntu,Ubuntu,Octopus
+Debian,Debian Backports,Nautilus

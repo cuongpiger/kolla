@@ -14,8 +14,8 @@
     - block:
         - name: Login to Dockerhub
           docker_login:
-            username: "{{ kolla_dockerhub_credentials.username | trim }}"
-            password: "{{ kolla_dockerhub_credentials.password | trim }}"
+            username: "{{ kolla_dockerhub_creds.user | trim }}"
+            password: "{{ kolla_dockerhub_creds.password | trim }}"
 
         - name: Push built container images
           docker_image:
@@ -23,9 +23,6 @@
             push: yes
             source: local
           loop: "{{ docker_host_info.images }}"
-          register: push_status
-          until: push_status.failed is false
-          retries: 5
       when: kolla_registry == 'dockerhub'
 
     - block:
@@ -42,7 +39,4 @@
             repository: "quay.io/{{ item.RepoTags.0 }}"
             source: local
           loop: "{{ docker_host_info.images }}"
-          register: push_status
-          until: push_status.failed is false
-          retries: 5
       when: kolla_registry == 'quay.io'

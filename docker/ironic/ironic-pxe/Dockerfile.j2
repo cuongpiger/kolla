@@ -9,17 +9,25 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
 
 {% if base_package_type == 'rpm' %}
     {% set ironic_pxe_packages = [
-        'grub2-tools',
-        'grub2-efi-*64',
-        'grub2-efi-aa64-modules',
         'ipxe-bootimgs',
-        'shim-*64',
         'tftp-server',
     ] %}
 
-    {% if base_arch in ['x86_64'] %}
+    {% if base_arch in ['x86_64', 'ppc64le'] %}
         {% set ironic_pxe_packages = ironic_pxe_packages + [
             'syslinux-tftpboot'
+        ] %}
+    {% endif %}
+
+    # NOTE(hrw): RHEL and CentOS ship those packages on all grub architectures
+    # (x86_64, ppc64le, aarch64, but not s390x), and therefore can be used on
+    # any of them to support heterogeneous clusters with AArch64.
+    {% if base_arch != 's390x' %}
+        {% set ironic_pxe_packages = ironic_pxe_packages + [
+            'grub2-tools',
+            'grub2-efi-*64',
+            'grub2-efi-aa64-modules',
+            'shim-*64',
         ] %}
     {% endif %}
 
@@ -43,11 +51,9 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
 {{ macros.install_packages(ironic_pxe_packages | customizable("packages")) }}
 {% endif %}
 
-ENV TFTPBOOT_PATH=/tftpboot \
-    HTTPBOOT_PATH=/httpboot
-COPY tftp-map-file-template /map-file-template
+COPY tftp-map-file /map-file
 COPY extend_start.sh /usr/local/bin/kolla_ironic_extend_start
-RUN chmod 644 /usr/local/bin/kolla_ironic_extend_start
+RUN chmod 755 /usr/local/bin/kolla_ironic_extend_start
 
 {% block ironic_pxe_footer %}{% endblock %}
 {% block footer %}{% endblock %}

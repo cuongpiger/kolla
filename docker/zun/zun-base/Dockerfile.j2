@@ -7,27 +7,33 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
 
 {% import "macros.j2" as macros with context %}
 
-{{ macros.enable_extra_repos(['openvswitch']) }}
 {{ macros.configure_user(name='zun') }}
 
-{% if base_package_type == 'rpm' %}
+{% if install_type == 'binary' %}
 
-    {% set zun_base_packages = [
-        'numactl',
-    ] %}
+RUN echo '{{ install_type }} not yet available for {{ base_distro }}' \
+    && /bin/false
 
-{{ macros.install_packages(zun_base_packages | customizable("packages")) }}
-RUN mkdir -p /var/www/cgi-bin/zun
+{% elif install_type == 'source' %}
 
-{% elif base_package_type == 'deb' %}
+    {% if base_package_type == 'rpm' %}
 
-    {% set zun_base_packages = [
-        'numactl',
-    ] %}
+        {% set zun_base_packages = [
+            'numactl',
+        ] %}
 
 {{ macros.install_packages(zun_base_packages | customizable("packages")) }}
 RUN mkdir -p /var/www/cgi-bin/zun
-{% endif %}
+
+    {% elif base_package_type == 'deb' %}
+
+        {% set zun_base_packages = [
+            'numactl',
+        ] %}
+
+{{ macros.install_packages(zun_base_packages | customizable("packages")) }}
+RUN mkdir -p /var/www/cgi-bin/zun
+    {% endif %}
 
 ADD zun-base-archive /zun-base-source
 
@@ -35,19 +41,23 @@ ADD zun-base-archive /zun-base-source
     '/zun'
 ] %}
 
-COPY zun_sudoers /etc/sudoers.d/kolla_zun_sudoers
-COPY extend_start.sh /usr/local/bin/kolla_extend_start
-
 RUN ln -s zun-base-source/* zun \
     && {{ macros.install_pip(zun_base_pip_packages | customizable("pip_packages")) }} \
     && mkdir -p /etc/zun /var/www/cgi-bin/zun \
     && cp -r /zun/etc/zun/* /etc/zun/ \
     && cp /zun/zun/api/app.wsgi /var/www/cgi-bin/zun \
-    && sed -i 's|^exec_dirs.*|exec_dirs=/var/lib/kolla/venv/bin,/sbin,/usr/sbin,/bin,/usr/bin,/usr/local/bin,/usr/local/sbin|g' /etc/zun/rootwrap.conf \
-    && chmod 750 /etc/sudoers.d \
+    && chown -R zun: /etc/zun /var/www/cgi-bin/zun \
+    && sed -i 's|^exec_dirs.*|exec_dirs=/var/lib/kolla/venv/bin,/sbin,/usr/sbin,/bin,/usr/bin,/usr/local/bin,/usr/local/sbin|g' /etc/zun/rootwrap.conf
+
+{% endif %}
+
+COPY zun_sudoers /etc/sudoers.d/kolla_zun_sudoers
+COPY extend_start.sh /usr/local/bin/kolla_extend_start
+
+RUN chmod 750 /etc/sudoers.d \
     && chmod 640 /etc/sudoers.d/kolla_zun_sudoers \
     && touch /usr/local/bin/kolla_zun_extend_start \
     && chmod 755 /var/www/cgi-bin/zun \
-    && chmod 644 /usr/local/bin/kolla_extend_start /usr/local/bin/kolla_zun_extend_start
+    && chmod 755 /usr/local/bin/kolla_extend_start /usr/local/bin/kolla_zun_extend_start
 
 {% block zun_base_footer %}{% endblock %}

@@ -7,49 +7,94 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
 
 {% import "macros.j2" as macros with context %}
 
-{{ macros.enable_extra_repos(['openvswitch']) }}
 {{ macros.configure_user(name='neutron') }}
 
-{% if base_package_type == 'rpm' %}
+{% if install_type == 'binary' %}
+    {% if base_package_type == 'rpm' %}
 
-    {% set neutron_base_packages = [
-        'conntrack-tools',
-        'dnsmasq',
-        'dnsmasq-utils',
-        'haproxy',
-        'iproute-tc',
-        'ipset',
-        'iptables',
-        'iputils',
-        'keepalived',
-        'net-tools',
-        'openvswitch',
-        'python3-openvswitch',
-        'radvd',
-        'uuid'
-    ] %}
+        {% set neutron_base_packages = [
+            'iputils',
+            'keepalived',
+            'net-tools',
+            'radvd',
+            'openstack-neutron',
+            'openstack-neutron-ml2',
+            'openvswitch',
+            'python3-networking-baremetal',
+            'python3-networking-mlnx',
+            'python3-networking-sfc',
+            'python3-networking-vmware-nsx',
+            'python3-openvswitch',
+            'python3-oslo-vmware'
+        ] %}
 
-{% elif base_package_type == 'deb' %}
+    {% elif base_package_type == 'deb' %}
 
-    {% set neutron_base_packages = [
-        'conntrack',
-        'dnsmasq',
-        'dnsmasq-utils',
-        'haproxy',
-        'iproute2',
-        'ipset',
-        'iptables',
-        'iputils-arping',
-        'iputils-ping',
-        'keepalived',
-        'net-tools',
-        'openvswitch-switch',
-        'python3-openvswitch',
-        'radvd',
-        'uuid-runtime'
-    ] %}
+        {% set neutron_base_packages = [
+            'iproute2',
+            'iputils-ping',
+            'keepalived',
+            'net-tools',
+            'radvd',
+            'neutron-plugin-ml2',
+            'neutron-server',
+            'openvswitch-switch',
+            'python3-networking-mlnx',
+            'python3-networking-sfc',
+            'python3-openvswitch',
+            'python3-oslo.vmware'
+        ] %}
+    {% endif %}
 
-{% endif %}
+{{ macros.install_packages(neutron_base_packages | customizable("packages")) }}
+
+    {% if base_package_type == 'deb' %}
+
+RUN mkdir -p /usr/share/neutron \
+    && ln -s /etc/neutron/api-paste.ini /usr/share/neutron/api-paste.ini
+
+    {% endif %}
+
+{% elif install_type == 'source' %}
+    {% if base_package_type == 'rpm' %}
+
+        {% set neutron_base_packages = [
+            'conntrack-tools',
+            'dnsmasq',
+            'dnsmasq-utils',
+            'haproxy',
+            'ipset',
+            'iptables',
+            'iputils',
+            'keepalived',
+            'net-tools',
+            'openvswitch',
+            'python3-openvswitch',
+            'radvd',
+            'uuid'
+        ] %}
+
+    {% elif base_package_type == 'deb' %}
+
+        {% set neutron_base_packages = [
+            'conntrack',
+            'dnsmasq',
+            'dnsmasq-utils',
+            'haproxy',
+            'iproute2',
+            'ipset',
+            'iptables',
+            'iputils-arping',
+            'iputils-ping',
+            'keepalived',
+            'net-tools',
+            'openvswitch-switch',
+            'python3-openvswitch',
+            'radvd',
+            'uuid-runtime'
+        ] %}
+
+    {% endif %}
 
 {{ macros.install_packages(neutron_base_packages | customizable("packages")) }}
 
@@ -65,15 +110,15 @@ ADD plugins-archive /
     '/plugins/*'
 ] %}
 
-COPY neutron_sudoers /etc/sudoers.d/kolla_neutron_sudoers
-COPY extend_start.sh /usr/local/bin/kolla_extend_start
-
 RUN ln -s neutron-base-source/* neutron \
+    && sed -i /^neutron=/d /requirements/upper-constraints.txt \
     && {{ macros.install_pip(neutron_base_pip_packages | customizable("pip_packages")) }} \
-    && mkdir -p /etc/neutron \
+    && mkdir -p /etc/neutron /usr/share/neutron \
     && cp -r /neutron/etc/* /etc/neutron/ \
     && cp -r /neutron/etc/neutron/* /etc/neutron/ \
+    && cp /neutron/etc/api-paste.ini /usr/share/neutron \
     && mv /etc/neutron/neutron/ /etc/neutron/plugins/ \
+    && chown -R neutron: /etc/neutron /usr/share/neutron \
     && sed -i 's|^exec_dirs.*|exec_dirs=/var/lib/kolla/venv/bin,/sbin,/usr/sbin,/bin,/usr/bin,/usr/local/bin,/usr/local/sbin|g' /etc/neutron/rootwrap.conf \
     && if [ "$(ls /plugins)" ]; then \
         {{ macros.install_pip(neutron_base_plugins_pip_packages) }} \
@@ -82,10 +127,16 @@ RUN ln -s neutron-base-source/* neutron \
                 cp /plugins/$neutron_plugins/etc/neutron/rootwrap.d/* /etc/neutron/rootwrap.d; \
             fi; \
         done; \
-       fi \
-    && chmod 750 /etc/sudoers.d \
+    fi
+
+{% endif %}
+
+COPY neutron_sudoers /etc/sudoers.d/kolla_neutron_sudoers
+COPY extend_start.sh /usr/local/bin/kolla_extend_start
+
+RUN chmod 750 /etc/sudoers.d \
     && chmod 440 /etc/sudoers.d/kolla_neutron_sudoers \
     && touch /usr/local/bin/kolla_neutron_extend_start \
-    && chmod 644 /usr/local/bin/kolla_extend_start /usr/local/bin/kolla_neutron_extend_start
+    && chmod 755 /usr/local/bin/kolla_extend_start /usr/local/bin/kolla_neutron_extend_start
 
 {% block neutron_base_footer %}{% endblock %}

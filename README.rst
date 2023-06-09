@@ -77,11 +77,13 @@ Kolla provides images to deploy the following OpenStack projects:
 - `CloudKitty <https://docs.openstack.org/cloudkitty/latest/>`__
 - `Cyborg <https://docs.openstack.org/cyborg/latest/>`__
 - `Designate <https://docs.openstack.org/designate/latest/>`__
+- `EC2-API <https://wiki.openstack.org/wiki/EC2API>`__
 - `Freezer <https://docs.openstack.org/freezer/latest/>`__
 - `Glance <https://docs.openstack.org/glance/latest/>`__
 - `Heat <https://docs.openstack.org/heat/latest/>`__
 - `Horizon <https://docs.openstack.org/horizon/latest/>`__
 - `Ironic <https://docs.openstack.org/ironic/latest/>`__
+- `Karbor <https://docs.openstack.org/karbor/latest/>`__
 - `Keystone <https://docs.openstack.org/keystone/latest/>`__
 - `Kuryr <https://docs.openstack.org/kuryr/latest/>`__
 - `Magnum <https://docs.openstack.org/magnum/latest/>`__
@@ -93,16 +95,21 @@ Kolla provides images to deploy the following OpenStack projects:
 - `Neutron <https://docs.openstack.org/neutron/latest/>`__
 - `Nova <https://docs.openstack.org/nova/latest/>`__
 - `Octavia <https://docs.openstack.org/octavia/latest/>`__
+- `Panko <https://docs.openstack.org/panko/latest/>`__
+- `Qinling <https://docs.openstack.org/qinling/latest/>`__
+- `Rally <https://docs.openstack.org/rally/latest/>`__
 - `Sahara <https://docs.openstack.org/sahara/latest/>`__
+- `Searchlight <https://docs.openstack.org/searchlight/latest/>`__
 - `Senlin <https://docs.openstack.org/senlin/latest/>`__
-- Skyline (`APIServer <https://docs.openstack.org/skyline-apiserver/latest/>`__ and `Console <https://docs.openstack.org/skyline-console/latest/>`__)
 - `Solum <https://docs.openstack.org/solum/latest/>`__
 - `Swift <https://docs.openstack.org/swift/latest/>`__
 - `Tacker <https://docs.openstack.org/tacker/latest/>`__
+- `Tempest <https://docs.openstack.org/tempest/latest/>`__
 - `Trove <https://docs.openstack.org/trove/latest/>`__
-- `Venus <https://docs.openstack.org/venus/latest/>`__
 - `Vitrage <https://docs.openstack.org/vitrage/latest/>`__
+- `Vmtp <https://vmtp.readthedocs.io/en/latest/>`__
 - `Watcher <https://docs.openstack.org/watcher/latest/>`__
+- `Zaqar <https://docs.openstack.org/zaqar/latest/>`__
 - `Zun <https://docs.openstack.org/zun/latest/>`__
 
 Infrastructure components
@@ -110,6 +117,10 @@ Infrastructure components
 
 Kolla provides images to deploy the following infrastructure components:
 
+- `Certmonger <https://pagure.io/certmonger>`__ a service to simplify interaction
+  with CAs on networks which use PKI.
+- `Chrony <https://chrony.tuxfamily.org/>`__ a versatile implementation
+  of the Network Time Protocol (NTP).
 - `Collectd <https://collectd.org>`__,
   `InfluxDB <https://influxdata.com/time-series-platform/influxdb/>`__, and
   `Grafana <https://grafana.com>`__ for performance monitoring.
@@ -132,7 +143,9 @@ Kolla provides images to deploy the following infrastructure components:
 - `MariaDB and Galera Cluster <https://mariadb.com/kb/en/library/galera-cluster/>`__
   for highly available MySQL databases.
 - `Memcached <https://www.memcached.org/>`__ a distributed memory object caching system.
-- `Open vSwitch <https://www.openvswitch.org/>`__ for use with Neutron.
+- `Open vSwitch <https://www.openvswitch.org/>`__ and Linuxbridge back ends for Neutron.
+- `Linux ptp <http://linuxptp.sourceforge.net/>`__ an implementation of the Precision
+  Time Protocol (PTP) according to IEEE standard 1588 for Linux.
 - MariaDB Backup A tool which provides a method of performing a hot backup of your MySQL data while the
   system is running.
 - `Prometheus <https://prometheus.io/>`__ an open-source systems monitoring
@@ -179,17 +192,16 @@ workflow <https://docs.openstack.org/infra/manual/developers.html>`__.
 -  File bugs, blueprints, track releases, etc on
    `Launchpad <https://launchpad.net/kolla>`__.
 -  Attend weekly
-   `meetings
-   <https://docs.openstack.org/kolla/latest/contributor/meeting.html>`__.
+   `meetings <https://wiki.openstack.org/wiki/Meetings/Kolla>`__.
 -  Contribute `code <https://opendev.org/openstack/kolla>`__.
 
 Contributors
 ============
 
 Check out who is `contributing
-code <https://stackalytics.io/?module=kolla-group&metric=commits>`__ and
+code <https://stackalytics.com/?module=kolla-group&metric=commits>`__ and
 `contributing
-reviews <https://stackalytics.io/?module=kolla-group&metric=marks>`__.
+reviews <https://stackalytics.com/?module=kolla-group&metric=marks>`__.
 
 Notices
 =======

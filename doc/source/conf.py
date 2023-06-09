@@ -37,8 +37,8 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = 'kolla'
-copyright = '2013-present, OpenStack Foundation'
+project = u'kolla'
+copyright = u'2013-present, OpenStack Foundation'
 
 # If true, '()' will be appended to :func: etc. cross-reference text.
 add_function_parentheses = True
@@ -49,9 +49,6 @@ add_module_names = True
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'native'
-
-# Default highlight language to use (unset defaults to python-style)
-highlight_language = 'none'
 
 # -- Options for HTML output --------------------------------------------------
 
@@ -74,8 +71,8 @@ htmlhelp_basename = '%sdoc' % project
 latex_documents = [
     ('index',
      'doc-%s.tex' % project,
-     '%s Documentation' % project,
-     'OpenStack Foundation', 'manual'),
+     u'%s Documentation' % project,
+     u'OpenStack Foundation', 'manual'),
 ]
 
 # Disable usage of xindy https://bugzilla.redhat.com/show_bug.cgi?id=1643664
@@ -86,8 +83,7 @@ openstackdocs_repo_name = 'openstack/kolla'
 openstackdocs_pdf_link = True
 openstackdocs_bug_project = 'kolla'
 openstackdocs_bug_tag = ''
-openstackdocs_auto_name = False
-openstackdocs_projects = [
+openstack_projects = [
     'kolla-ansible',
     'oslotest',
 ]

@@ -1,4 +1,0 @@
----
-upgrade:
-  - |
-    Kolla toolbox is now using ansible-core 2.11.

@@ -9,18 +9,39 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
 
 {{ macros.configure_user(name='swift') }}
 
-{% if base_package_type == 'rpm' %}
-    {% set swift_base_packages = [
-        'liberasurecode-devel',
-        'nmap-ncat',
-    ] %}
-{% elif base_package_type == 'deb' %}
-    {% set swift_base_packages = [
-        'liberasurecode-dev',
-        'netcat-openbsd',
-        'rsync',
-    ] %}
-{% endif %}
+{% if install_type == 'binary' %}
+    {% if base_package_type == 'rpm' %}
+        {% set swift_base_packages = [
+            'nmap-ncat',
+            'openstack-swift',
+        ] %}
+    {% elif base_package_type == 'deb' %}
+        {% set swift_base_packages = [
+            'netcat-openbsd',
+            'rsync',
+            'swift',
+        ] %}
+    {% endif %}
+
+{{ macros.install_packages(swift_base_packages | customizable("packages")) }}
+    {# NOTE(mgoddard): UCA packages seem to modify the group membership for #}
+    {# the swift user, removing it from the kolla group. #}
+    {% if base_package_type == 'deb' %}
+RUN usermod --append --groups kolla swift
+    {% endif %}
+{% elif install_type == 'source' %}
+    {% if base_package_type == 'rpm' %}
+        {% set swift_base_packages = [
+            'liberasurecode-devel',
+            'nmap-ncat',
+        ] %}
+    {% elif base_package_type == 'deb' %}
+        {% set swift_base_packages = [
+            'liberasurecode-dev',
+            'netcat-openbsd',
+            'rsync',
+        ] %}
+    {% endif %}
 
 {{ macros.install_packages(swift_base_packages | customizable("packages")) }}
 
@@ -30,16 +51,18 @@ ADD swift-base-archive /swift-base-source
     '/swift'
 ] %}
 
-COPY swift-rootwrap /var/lib/kolla/venv/bin/swift-rootwrap
-COPY rootwrap.conf /etc/swift/rootwrap.conf
-COPY swift_sudoers /etc/sudoers.d/kolla_swift_sudoers
-
 RUN ln -s swift-base-source/* swift \
     && {{ macros.install_pip(swift_base_pip_packages | customizable("pip_packages")) }} \
     && mkdir -p /etc/swift /var/cache/swift /var/lock/swift \
     && cp -r /swift/etc/* /etc/swift/ \
-    && chown -R swift: /var/cache/swift /var/lock/swift \
-    && chmod 755 /var/lib/kolla/venv/bin/swift-rootwrap \
+    && chown -R swift: /etc/swift /var/cache/swift /var/lock/swift
+{% endif %}
+
+COPY swift-rootwrap /var/lib/kolla/venv/bin/swift-rootwrap
+COPY rootwrap.conf /etc/swift/rootwrap.conf
+COPY swift_sudoers /etc/sudoers.d/kolla_swift_sudoers
+
+RUN chmod 755 /var/lib/kolla/venv/bin/swift-rootwrap \
     && chmod 644 /etc/swift/rootwrap.conf \
     && sed -i 's|^exec_dirs.*|exec_dirs=/var/lib/kolla/venv/bin,/sbin,/usr/sbin,/bin,/usr/bin,/usr/local/bin,/usr/local/sbin|g' /etc/swift/rootwrap.conf \
     && chmod 750 /etc/sudoers.d \

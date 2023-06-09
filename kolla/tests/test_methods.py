@@ -22,6 +22,17 @@ class MethodsTest(base.TestCase):
         expectCmd = 'apt-get -y install --no-install-recommends package2.deb'
         self.assertEqual(expectCmd, result.split("&&")[1].strip())
 
+    def test_enable_repos_rhel(self):
+        template_vars = {
+            'base_arch': 'x86_64',
+            'base_distro': 'rhel',
+            'base_package_type': 'rpm',
+        }
+
+        result = methods.handle_repos(template_vars, ['grafana'], 'enable')
+        expectCmd = ''
+        self.assertEqual(expectCmd, result)
+
     def test_enable_repos_centos(self):
         template_vars = {
             'base_arch': 'x86_64',
@@ -55,7 +66,7 @@ class MethodsTest(base.TestCase):
         result = methods.handle_repos(template_vars, ['grafana', 'ceph'],
                                       'enable')
         expectCmd = 'RUN dnf config-manager  --enable grafana '
-        expectCmd += '--enable centos-ceph-quincy || true'
+        expectCmd += '--enable centos-ceph-nautilus || true'
         self.assertEqual(expectCmd, result)
 
     def test_enable_repos_debian(self):
@@ -66,16 +77,8 @@ class MethodsTest(base.TestCase):
         }
 
         result = methods.handle_repos(template_vars, ['grafana'], 'enable')
-        expectCmd = "RUN echo 'Uris: https://apt.grafana.com' "
-        expectCmd += ">/etc/apt/sources.list.d/grafana.sources && "
-        expectCmd += "echo 'Components: main' "
-        expectCmd += ">>/etc/apt/sources.list.d/grafana.sources && "
-        expectCmd += "echo 'Types: deb' "
-        expectCmd += ">>/etc/apt/sources.list.d/grafana.sources && "
-        expectCmd += "echo 'Suites: stable' "
-        expectCmd += ">>/etc/apt/sources.list.d/grafana.sources && "
-        expectCmd += "echo 'Signed-By: /etc/kolla/apt-keys/grafana.asc' "
-        expectCmd += ">>/etc/apt/sources.list.d/grafana.sources"
+        expectCmd = 'RUN echo "deb https://packages.grafana.com/oss/deb '
+        expectCmd += 'stable main" >/etc/apt/sources.list.d/grafana.list'
         self.assertEqual(expectCmd, result)
 
     def test_enable_repos_debian_missing_repo(self):
@@ -97,31 +100,13 @@ class MethodsTest(base.TestCase):
             'base_package_type': 'deb'
         }
 
-        result = methods.handle_repos(template_vars, ['grafana', 'rabbitmq'],
+        result = methods.handle_repos(template_vars, ['grafana', 'kibana'],
                                       'enable')
-        expectCmd = "RUN echo 'Uris: https://apt.grafana.com' "
-        expectCmd += ">/etc/apt/sources.list.d/grafana.sources && "
-        expectCmd += "echo 'Components: main' "
-        expectCmd += ">>/etc/apt/sources.list.d/grafana.sources && "
-        expectCmd += "echo 'Types: deb' "
-        expectCmd += ">>/etc/apt/sources.list.d/grafana.sources && "
-        expectCmd += "echo 'Suites: stable' "
-        expectCmd += ">>/etc/apt/sources.list.d/grafana.sources && "
-        expectCmd += "echo 'Signed-By: /etc/kolla/apt-keys/grafana.asc' "
-        expectCmd += ">>/etc/apt/sources.list.d/grafana.sources && "
-
-        expectCmd += "echo 'Uris: "
-        expectCmd += "https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-server/deb/debian' "  # noqa: E501
-        expectCmd += ">/etc/apt/sources.list.d/rabbitmq.sources && "
-        expectCmd += "echo 'Components: main' "
-        expectCmd += ">>/etc/apt/sources.list.d/rabbitmq.sources && "
-        expectCmd += "echo 'Types: deb' "
-        expectCmd += ">>/etc/apt/sources.list.d/rabbitmq.sources && "
-        expectCmd += "echo 'Suites: bullseye' "
-        expectCmd += ">>/etc/apt/sources.list.d/rabbitmq.sources && "
-        expectCmd += "echo 'Signed-By: /etc/kolla/apt-keys/rabbitmq.gpg' "
-        expectCmd += ">>/etc/apt/sources.list.d/rabbitmq.sources"
-
+        expectCmd = 'RUN echo "deb https://packages.grafana.com/oss/deb '
+        expectCmd += 'stable main" >/etc/apt/sources.list.d/grafana.list && '
+        expectCmd += 'echo "deb [arch=amd64] '
+        expectCmd += 'https://artifacts.elastic.co/packages/oss-6.x/apt '
+        expectCmd += 'stable main" >/etc/apt/sources.list.d/kibana.list'
         self.assertEqual(expectCmd, result)
 
     def test_disable_repos_centos(self):
@@ -145,7 +130,7 @@ class MethodsTest(base.TestCase):
         result = methods.handle_repos(template_vars, ['grafana', 'ceph'],
                                       'disable')
         expectCmd = 'RUN dnf config-manager  --disable grafana '
-        expectCmd += '--disable centos-ceph-quincy || true'
+        expectCmd += '--disable centos-ceph-nautilus || true'
         self.assertEqual(expectCmd, result)
 
     # NOTE(hrw): there is no disabling of repos for Debian/Ubuntu

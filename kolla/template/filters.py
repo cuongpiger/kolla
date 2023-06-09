@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -10,7 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from jinja2 import pass_context
+# NOTE: jinja2 3.1.0 dropped contextfilter in favour of pass_context.
+try:
+    from jinja2 import pass_context
+except ImportError:
+    from jinja2 import contextfilter as pass_context
+
 from jinja2 import Undefined
 
 

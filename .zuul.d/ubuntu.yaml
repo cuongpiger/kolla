@@ -2,67 +2,102 @@
 - project:
     check:
       jobs:
-        - kolla-build-ubuntu
-        - kolla-ansible-ubuntu
-        - kolla-ansible-ubuntu-upgrade
+        - kolla-build-ubuntu-binary
+        - kolla-build-ubuntu-source
+        - kolla-ansible-ubuntu-source:
+            vars:
+              kolla_python_version: 3.8
+        - kolla-ansible-ubuntu-binary:
+            vars:
+              kolla_python_version: 3.8
+        - kolla-ansible-ubuntu-source-upgrade:
+            vars:
+              kolla_python_version: 3.8
     check-arm64:
       jobs:
-        - kolla-build-ubuntu-aarch64
+        - kolla-build-ubuntu-source-aarch64
     gate:
       jobs:
-        - kolla-build-ubuntu
-        - kolla-ansible-ubuntu
-        - kolla-ansible-ubuntu-upgrade
+        - kolla-build-ubuntu-source
+        - kolla-ansible-ubuntu-source:
+            vars:
+              kolla_python_version: 3.8
+        - kolla-ansible-ubuntu-source-upgrade:
+            vars:
+              kolla_python_version: 3.8
     periodic:
       jobs:
-        - kolla-publish-ubuntu-quay
+        - kolla-publish-ubuntu-source-quay
+        - kolla-publish-ubuntu-binary-quay
     periodic-weekly:
       jobs:
-        - kolla-publish-ubuntu-dockerhub
+        - kolla-publish-ubuntu-source-dockerhub
+        - kolla-publish-ubuntu-binary-dockerhub
+    release:
+      jobs:
+        - kolla-publish-ubuntu-source-dockerhub
+        - kolla-publish-ubuntu-binary-dockerhub
     experimental:
       jobs:
-        - kolla-build-no-infra-wheels-ubuntu
+        - kolla-build-no-infra-wheels-ubuntu-source
         # Test rabbitmq and mariadb in multinode ceph jobs.
-        - kolla-ansible-ubuntu-cephadm:
+        - kolla-ansible-ubuntu-source-ceph-ansible:
             files: ^docker\/(base|cinder|glance|mariadb|openstack-base|rabbitmq)\/.*
-        - kolla-ansible-ubuntu-upgrade-cephadm:
+            vars:
+              kolla_python_version: 3.8
+        - kolla-ansible-ubuntu-source-upgrade-ceph-ansible:
             files: ^docker\/(base|cinder|glance|mariadb|openstack-base|rabbitmq)\/.*
-        - kolla-ansible-ubuntu-zun:
+            vars:
+              kolla_python_version: 3.8
+        - kolla-ansible-ubuntu-source-zun:
             files: ^docker\/(base|cinder|etcd|iscsid|kuryr|openstack-base|zun)\/.*
-        - kolla-ansible-ubuntu-ironic:
+            vars:
+              kolla_python_version: 3.8
+        - kolla-ansible-ubuntu-source-ironic:
             files: ^docker\/(base|dnsmasq|ironic|ironic-inspector|iscsid|openstack-base)\/.*
-        - kolla-ansible-ubuntu-swift:
+            vars:
+              kolla_python_version: 3.8
+        - kolla-ansible-ubuntu-source-swift:
             files: ^docker/(base|openstack-base|glance|swift)/
-        - kolla-ansible-ubuntu-mariadb:
+            vars:
+              kolla_python_version: 3.8
+        - kolla-ansible-ubuntu-source-mariadb:
             files: ^docker/(base|mariadb)/
-        - kolla-ansible-ubuntu-masakari:
+            vars:
+              kolla_python_version: 3.8
+        - kolla-ansible-ubuntu-source-masakari:
             files: ^docker/(base|masakari|openstack-base)/
-        - kolla-ansible-ubuntu-octavia:
-            files: ^docker/(base|neutron|octavia|openstack-base|openvswitch|ovn)/
-        - kolla-ansible-ubuntu-ovn:
+            vars:
+              kolla_python_version: 3.8
+        - kolla-ansible-ubuntu-source-linuxbridge:
+            files: ^docker/(base|neutron|openstack-base)/
+            vars:
+              kolla_python_version: 3.8
+        - kolla-ansible-ubuntu-source-ovn:
             files: ^docker/(base|neutron|openstack-base|openvswitch|ovn)/
-        - kolla-ansible-ubuntu-prometheus-opensearch:
-            files: ^docker/(base|opensearch|fluentd|grafana|prometheus)/
-        - kolla-ansible-ubuntu-kvm:
+            vars:
+              kolla_python_version: 3.8
+        - kolla-ansible-ubuntu-source-prometheus-efk:
+            files: ^docker/(base|elasticsearch|grafana|kibana|prometheus)/
+            vars:
+              kolla_python_version: 3.8
+        - kolla-ansible-ubuntu-source-kvm:
             files: ^docker/nova/
+            vars:
+              kolla_python_version: 3.8
 
 - job:
-    name: kolla-build-ubuntu
+    name: kolla-build-ubuntu-binary
     parent: kolla-base
-    nodeset: kolla-ubuntu-jammy
+    nodeset: kolla-ubuntu-focal
+    voting: false
     vars:
       base_distro: ubuntu
-      base_distro_version: jammy
+      install_type: binary
 
 - job:
-    name: kolla-build-ubuntu-aarch64
-    parent: kolla-build-ubuntu
-    nodeset: kolla-ubuntu-jammy-aarch64
-    voting: false
-
-- job:
-    name: kolla-publish-ubuntu-dockerhub
-    parent: kolla-build-ubuntu
+    name: kolla-publish-ubuntu-binary-dockerhub
+    parent: kolla-build-ubuntu-binary
     post-run: tests/playbooks/publish.yml
     vars:
       publisher: true
@@ -72,8 +107,8 @@
       - kolla_dockerhub_creds
 
 - job:
-    name: kolla-publish-ubuntu-quay
-    parent: kolla-build-ubuntu
+    name: kolla-publish-ubuntu-binary-quay
+    parent: kolla-build-ubuntu-binary
     post-run: tests/playbooks/publish.yml
     vars:
       publisher: true
@@ -83,8 +118,45 @@
       - kolla_quay_io_creds
 
 - job:
-    name: kolla-build-no-infra-wheels-ubuntu
-    parent: kolla-build-no-infra-wheels-base
-    nodeset: kolla-ubuntu-jammy
+    name: kolla-build-ubuntu-source
+    parent: kolla-base
+    nodeset: kolla-ubuntu-focal
     vars:
       base_distro: ubuntu
+      install_type: source
+
+- job:
+    name: kolla-build-ubuntu-source-aarch64
+    parent: kolla-build-ubuntu-source
+    nodeset: kolla-ubuntu-focal-aarch64
+    voting: false
+
+- job:
+    name: kolla-publish-ubuntu-source-dockerhub
+    parent: kolla-build-ubuntu-source
+    post-run: tests/playbooks/publish.yml
+    vars:
+      publisher: true
+      kolla_registry: dockerhub
+      kolla_namespace: kolla
+    secrets:
+      - kolla_dockerhub_creds
+
+- job:
+    name: kolla-publish-ubuntu-source-quay
+    parent: kolla-build-ubuntu-source
+    post-run: tests/playbooks/publish.yml
+    vars:
+      publisher: true
+      kolla_registry: quay.io
+      kolla_namespace: openstack.kolla
+    secrets:
+      - kolla_quay_io_creds
+
+- job:
+    name: kolla-build-no-infra-wheels-ubuntu-source
+    parent: kolla-build-no-infra-wheels-base
+    nodeset: kolla-ubuntu-focal
+    vars:
+      base_distro: ubuntu
+      install_type: source

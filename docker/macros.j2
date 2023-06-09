@@ -34,7 +34,7 @@
 
 {% macro install_pip(packages, constraints = true) %}
 {%- if packages is sequence and packages|length > 0 -%}
-    SETUPTOOLS_USE_DISTUTILS=stdlib python3 -m pip --no-cache-dir install --upgrade{{ ' ' }}
+    SETUPTOOLS_USE_DISTUTILS=stdlib python{{ distro_python_version }} -m pip --no-cache-dir install --upgrade{{ ' ' }}
     {%- if constraints %}-c /requirements/upper-constraints.txt {% endif -%}
     {{ packages | join(' ') }}
 {%- else -%}
@@ -58,10 +58,14 @@ RUN usermod --append --home {{ homedir }} --groups kolla {{ name }} \
     && chown -R {{ user.uid }}:{{ user.gid }} {{ homedir }}
 {% endmacro %}
 
-{% macro install_fluent_plugins(plugins, chain=False) -%}
+{% macro install_fluent_plugins(binary, plugins, chain=False) -%}
 {% if plugins is defined and plugins|length > 0 -%}
     {% if not chain -%} RUN {% endif -%}
-    ulimit -n 65536 && td-agent-gem install {{ plugins | join(' ') }}
+    {%- if binary == 'td-agent' -%}
+        ulimit -n 65536 && td-agent-gem install {{ plugins | join(' ') }}
+    {%- else -%}
+        ulimit -n 65536 && gem install --minimal-deps {{ plugins | join(' ') }}
+    {%- endif %}
 {%- endif %}
 {%- endmacro %}
 
@@ -77,11 +81,7 @@ RUN usermod --append --home {{ homedir }} --groups kolla {{ name }} \
 
 {% endmacro %}
 
-{% macro upper_constraints_remove(package_name) -%}
-sed -e "/^{{ package_name }}===/d" -i requirements/upper-constraints.txt
-{%- endmacro %}
-
-{# NOTE(hrw): we change to "==" to allow for "21.*" syntax #}
-{% macro upper_constraints_version_change(package_name, from, to) -%}
-sed -e "s/^{{package_name}}==={{ from }}/{{package_name}}=={{ to }}/g" -i requirements/upper-constraints.txt
-{%- endmacro %}
+{% macro add_binary_source_envs() %}
+ENV KOLLA_INSTALL_TYPE={{ install_type }} \
+    KOLLA_INSTALL_METATYPE={{ install_metatype }}
+{% endmacro %}

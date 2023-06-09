@@ -9,20 +9,37 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
 
 {{ macros.configure_user(name='magnum') }}
 
+{% if install_type == 'binary' %}
+    {% if base_package_type == 'rpm' and base_distro != 'rhel' %}
+       {% set magnum_base_packages = ['openstack-magnum-common'] %}
+    {% elif base_package_type == 'rpm' and base_distro == 'rhel' %}
+RUN echo '{{ install_type }} not yet available for {{ base_distro }}' \
+    && /bin/bash
+    {% elif base_package_type == 'deb' %}
+       {% set magnum_base_packages = ['magnum-common'] %}
+    {% endif %}
+{{ macros.install_packages(magnum_base_packages | customizable("packages")) }}
+
+{% elif install_type == 'source' %}
+
 ADD magnum-base-archive /magnum-base-source
 
 {% set magnum_base_pip_packages = [
     '/magnum[osprofiler]'
 ] %}
 
-COPY extend_start.sh /usr/local/bin/kolla_extend_start
-
 RUN ln -s magnum-base-source/* magnum \
     && {{ macros.install_pip(magnum_base_pip_packages | customizable("pip_packages")) }} \
     && mkdir -p /etc/magnum \
     && cp -r /magnum/etc/magnum/* /etc/magnum \
     && mv /etc/magnum/keystone_auth_default_policy.sample /etc/magnum/keystone_auth_default_policy.json \
-    && touch /usr/local/bin/kolla_magnum_extend_start \
-    && chmod 644 /usr/local/bin/kolla_extend_start /usr/local/bin/kolla_magnum_extend_start
+    && chown -R magnum: /etc/magnum
+
+{% endif %}
+
+COPY extend_start.sh /usr/local/bin/kolla_extend_start
+
+RUN touch /usr/local/bin/kolla_magnum_extend_start \
+    && chmod 755 /usr/local/bin/kolla_extend_start /usr/local/bin/kolla_magnum_extend_start
 
 {% block magnum_base_footer %}{% endblock %}

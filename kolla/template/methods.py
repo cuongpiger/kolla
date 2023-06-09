@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,7 +15,11 @@
 import os
 import yaml
 
-from jinja2 import pass_context
+# NOTE: jinja2 3.1.0 dropped contextfunction in favour of pass_context.
+try:
+    from jinja2 import pass_context
+except ImportError:
+    from jinja2 import contextfunction as pass_context
 
 
 def debian_package_install(packages, clean_package_cache=True):
@@ -47,7 +53,7 @@ def debian_package_install(packages, clean_package_cache=True):
 
     # handle the apt-get install
     if reg_packages:
-        cmds.append('apt-get --error-on=any update')
+        cmds.append('apt-get update')
         cmds.append('apt-get -y install --no-install-recommends {}'.format(
             ' '.join(reg_packages)
         ))
@@ -74,7 +80,7 @@ def handle_repos(context, reponames, mode):
     """NOTE(hrw): we need to handle CentOS, Debian and Ubuntu with one macro.
 
     Repo names have to be simple names mapped to proper ones.  So 'ceph' ==
-    'centos-ceph-pacific' for CentOS, UCA for Ubuntu (enabled by default) and
+    'centos-ceph-nautilus' for CentOS, UCA for Ubuntu (enabled by default) and
     something else for Debian.
     Distro/arch are not required to have all entries - we ignore missing ones.
     """
@@ -89,11 +95,7 @@ def handle_repos(context, reponames, mode):
     if not isinstance(reponames, list):
         raise TypeError("First argument should be a list of repositories")
 
-    if context.get('repos_yaml'):
-        repofile = context.get('repos_yaml')
-    else:
-        repofile = os.path.dirname(os.path.realpath(__file__)) + '/repos.yaml'
-
+    repofile = os.path.dirname(os.path.realpath(__file__)) + '/repos.yaml'
     with open(repofile, 'r') as repos_file:
         repo_data = {}
         for name, params in yaml.safe_load(repos_file).items():
@@ -117,16 +119,8 @@ def handle_repos(context, reponames, mode):
                 commands += ' %s %s' % (rpm_switch, repo_list[repo])
             elif base_package_type == 'deb':
                 if mode == 'enable':
-                    commands += f"""echo 'Uris: {repo_list[repo]['url']}' \
->/etc/apt/sources.list.d/{repo}.sources \
-&& echo 'Components: {repo_list[repo]['component']}' \
->>/etc/apt/sources.list.d/{repo}.sources \
-&& echo 'Types: deb' >>/etc/apt/sources.list.d/{repo}.sources \
-&& echo 'Suites: {repo_list[repo]['suite']}' \
->>/etc/apt/sources.list.d/{repo}.sources \
-&& echo 'Signed-By: /etc/kolla/apt-keys/{repo_list[repo]['gpg_key']}' \
->>/etc/apt/sources.list.d/{repo}.sources \
-&& """
+                    commands += 'echo "%s" ' % repo_list[repo]
+                    commands += '>/etc/apt/sources.list.d/%s.list && ' % repo
         except KeyError:
             # NOTE(hrw): we ignore missing repositories for a given
             # distro/arch

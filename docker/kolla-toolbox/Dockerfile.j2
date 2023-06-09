@@ -1,4 +1,4 @@
-FROM {{ namespace }}/{{ image_prefix }}base:{{ tag }}
+FROM {{ namespace }}/{{ infra_image_prefix }}base:{{ tag }}
 {% block labels %}
 LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build_date }}"
 {% endblock %}
@@ -10,16 +10,21 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
 
 {% import "macros.j2" as macros with context %}
 
+{{ macros.add_binary_source_envs() }}
 {{ macros.configure_user(name='ansible') }}
 {{ macros.configure_user(name='rabbitmq') }}
 
-{{ macros.enable_extra_repos(['crb', 'erlang', 'openvswitch', 'rabbitmq']) }}
+{% if base_arch == 'aarch64' %}
+{{ macros.enable_extra_repos(['epel']) }}
+{% endif %}
+
+{{ macros.enable_extra_repos(['erlang', 'openvswitch', 'powertools', 'rabbitmq']) }}
 
 {% if base_package_type == 'rpm' %}
 
     {% set kolla_toolbox_packages = [
         'crudini',
-        'erlang-25.*',
+        'erlang-23.*',
         'gcc',
         'gdisk',
         'git',
@@ -28,11 +33,13 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
         'libxml2-devel',
         'libxslt-devel',
         'make',
+        'mariadb',
+        'mariadb-devel',
         'openssh-clients',
         'openssl-devel',
         'openvswitch',
         'python3-devel',
-        'rabbitmq-server-3.11.*'
+        'rabbitmq-server-3.8.*'
     ] %}
 
 {% elif base_package_type == 'deb' %}
@@ -44,63 +51,59 @@ LABEL maintainer="{{ maintainer }}" name="{{ image_name }}" build-date="{{ build
         'git',
         'jq',
         'libffi-dev',
+        'libmariadb-dev-compat',
         'libssl-dev',
         'libxslt1-dev',
+        'mariadb-client',
         'openvswitch-switch',
         'python3-dev',
-        'python3-venv',
         'rabbitmq-server',
      ] %}
 {% endif %}
 {{ macros.install_packages(kolla_toolbox_packages | customizable("packages")) }}
 
 {% set kolla_toolbox_pip_virtualenv_packages = [
+        'virtualenv'
     ] %}
 
 {% block kolla_toolbox_upper_constraints %}
 RUN mkdir -p /requirements \
-    && curl -o /requirements/upper-constraints.txt ${UPPER_CONSTRAINTS_FILE:-https://releases.openstack.org/constraints/upper/{{ openstack_release }}} \
-    && {{ macros.upper_constraints_remove("openstacksdk") }} \
+    && curl -o /requirements/upper-constraints.txt https://releases.openstack.org/constraints/upper/{{ openstack_release }} \
     && {{ macros.install_pip(kolla_toolbox_pip_virtualenv_packages | customizable("pip_virtualenv_packages")) }} \
-    && python3 -m venv --system-site-packages {{ virtualenv_path }}
+    && virtualenv --system-site-packages {{ virtualenv_path }}
 {% endblock %}
 
 ENV PATH {{ virtualenv_path }}/bin:$PATH
 
 {% set kolla_toolbox_pip_packages = [
-        'ansible-core==2.14.*',
+        'ansible==2.9.*',
         'cmd2',
         'influxdb',
-        'openstacksdk',
+        'mysqlclient',
         'os-client-config',
         'pbr',
-        'pymysql',
-        'python-ironicclient',
+        'pymongo',
         'python-openstackclient',
         'pytz',
         'pyudev',
+        'shade'
     ] %}
 
-COPY requirements.yml /var/lib/ansible/
-RUN {{ macros.install_pip(['pip', 'wheel', 'setuptools']) }} \
-    && {{ macros.install_pip(kolla_toolbox_pip_packages | customizable("pip_packages")) }} \
+RUN {{ macros.install_pip(kolla_toolbox_pip_packages | customizable("pip_packages")) }} \
     && mkdir -p /etc/ansible /usr/share/ansible \
     && echo 'localhost ansible_connection=local ansible_python_interpreter={{ virtualenv_path }}/bin/python' > /etc/ansible/hosts \
-    && sed -i 's|  "identity_api_version": "2.0",|  "identity_api_version": "3",|' {{ os_client_config }} \
-    && for i in {1..5}; do ansible-galaxy collection install --timeout 120 -p /usr/share/ansible/collections -r /var/lib/ansible/requirements.yml \
-    && break || sleep 15; done
+    && sed -i 's|  "identity_api_version": "2.0",|  "identity_api_version": "3",|' {{ os_client_config }}
 
 ENV ANSIBLE_LIBRARY /usr/share/ansible:$ANSIBLE_LIBRARY
 
-COPY find_disks.py /usr/share/ansible/
-COPY ansible.cfg /etc/ansible/ansible.cfg
-COPY ansible_sudoers /etc/sudoers.d/kolla_ansible_sudoers
-COPY extend_start.sh /usr/local/bin/kolla_extend_start
-
+COPY find_disks.py kolla_sanity.py /usr/share/ansible/
+COPY ansible.cfg /var/lib/ansible/.ansible.cfg
 RUN chmod 644 /usr/share/ansible/find_disks.py \
-              /etc/ansible/ansible.cfg \
-              /usr/local/bin/kolla_extend_start \
-    && chmod 440 /etc/sudoers.d/kolla_ansible_sudoers
+              /usr/share/ansible/kolla_sanity.py \
+              /var/lib/ansible/.ansible.cfg
+
+COPY ansible_sudoers /etc/sudoers.d/kolla_ansible_sudoers
+RUN chmod 440 /etc/sudoers.d/kolla_ansible_sudoers
 
 {% block kolla_toolbox_footer %}{% endblock %}
 {% block footer %}{% endblock %}
